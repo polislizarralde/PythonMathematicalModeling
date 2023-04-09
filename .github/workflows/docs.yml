@@ -1,0 +1,23 @@
+name: docs
+on:
+  push:
+    branches:
+      - main
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.11.2'
+        cache: 'pip' # caching pip dependencies
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install --user --no-cache-dir Cython
+        pip install --user -r requirements.txt
+    - name: depoly
+      run: mkdocs gh-deploy --force
+      env:
+        RUN_GITHUB_ACTION: ${{ secrets.RUN_GITHUB_ACTION }} 

@@ -1,0 +1,82 @@
+site_name: Mathematical playground using Python
+site_description: Personal exploration of Python for Mathematical modelling
+site_author: Diana Paola Lizarralde-Bejarano
+
+site_url: https://github.com/polislizarralde/PythonPlayground
+repo_url: https://github.com/polislizarralde/PythonPlayground
+repo_name: polislizarralde/PythonPlayground
+edit_uri: edit/main/docs/
+
+copyright: "Copyright &copy; 2023 -  Diana Paola Lizarralde-Bejarano"
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascript/extra.js
+   
+theme:
+  palette:
+    - scheme: default
+      #   primary: blue
+      #   accent: indigo
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to light mode
+  name: material
+  icon:
+    repo: fontawesome/brands/github-alt
+  features:
+    - navigation.instant
+    - search.highlight
+    - content.action.edit
+  custom_dir: "docs/overrides"
+  font:
+    text: Google Sans
+    code: Regular
+
+plugins:
+  - search
+  - mkdocstrings
+  - git-revision-date
+  - mkdocs-jupyter:
+      include_source: true
+      ignore_h1_titles: true
+      execute: true
+      allow_errors: true
+      ignore: ["name.ipynb"]
+      execute_ignore: 
+        - "path/*.ipynb"
+  - blog:
+      blog_toc: true
+  - git-revision-date-localized:
+      enable_creation_date: true
+  - git-committers:
+      repository: polislizarralde/PythonPlayground
+      branch: main
+  - git-authors
+
+markdown_extensions:
+  - attr_list
+  - toc:
+      permalink: true
+
+extra:
+  analytics:
+    provider: google
+    property: G-XXX
+nav:
+  - Plague Project:
+    - MetapopModelPlague: "PlagueProject/MetapopModelPlague.ipynb"
+  - Code book Keeling:
+    - Season function: "PlagueProject/CodeBookKeeling/SeasonFunction.ipynb"
+    - SIR Metapol: "PlagueProject/CodeBookKeeling/SIRMetapol.ipynb"
+  - Report Issues: https://github.com/polislizarralde/PythonPlayground/issues
+  - Blog:
+    - blog/index.md

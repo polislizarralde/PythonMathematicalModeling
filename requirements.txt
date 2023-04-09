@@ -1,0 +1,22 @@
+--find-links=https://girder.github.io/large_image_wheels GDAL
+geemap
+geopandas
+leafmap
+SciPy
+Pyomo
+seaborn
+numpy
+pandas
+matplotlib
+mkdocs-material
+mkdocstrings
+mkdocs-blog-plugin
+mkdocs-git-revision-date-plugin
+mkdocs-jupyter
+mkdocs-pdf-export-plugin
+ipykernel
+mkdocs-git-revision-date-localized-plugin
+mkdocs-git-committers-plugin-2
+mkdocs-git-authors-plugin
+html5lib
+lxml
