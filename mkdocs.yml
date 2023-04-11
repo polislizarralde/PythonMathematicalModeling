@@ -35,11 +35,36 @@ theme:
   features:
     - navigation.instant
     - search.highlight
+    - search.suggest
     - content.action.edit
+    - navigation.expand
   custom_dir: "docs/overrides"
   font:
     text: Google Sans
     code: Regular
+
+markdown_extensions:
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - def_list
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - attr_list
+  - toc:
+      permalink: true
 
 plugins:
   - search
@@ -70,6 +95,8 @@ extra:
 nav:
   - Plague Project:
     - MetapopModelPlague: "PlagueProject/MetapopModelPlague.ipynb"
+    - SeasonalMetapopModelPlague: "PlagueProject/SeasMetapopModelPlague.ipynb"
+    - FittingMetaPopModel: "PlagueProject/FittingMetaPopModelPlague.ipynb"
   - Code book Keeling:
     - Season function: "PlagueProject/CodeBookKeeling/SeasonFunction.ipynb"
     - SIR Metapol: "PlagueProject/CodeBookKeeling/SIRMetapol.ipynb"
