@@ -57,10 +57,6 @@ plugins:
       blog_toc: true
   - git-revision-date-localized:
       enable_creation_date: true
-  - git-committers:
-      repository: polislizarralde/PythonPlayground
-      branch: main
-  - git-authors
 
 markdown_extensions:
   - attr_list
