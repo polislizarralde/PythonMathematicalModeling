@@ -96,7 +96,7 @@ nav:
   - Plague Project:
     - MetapopModelPlague: "PlagueProject/MetapopModelPlague.ipynb"
     - SeasonalMetapopModelPlague: "PlagueProject/SeasMetapopModelPlague.ipynb"
-    - FittingMetaPopModel: "PlagueProject/FittingMetaPopModelPlague.ipynb"
+    - FittingMetaPopModel: "PlagueProject/FittingMetapopModelPlague.ipynb"
   - Code book Keeling:
     - Season function: "PlagueProject/CodeBookKeeling/SeasonFunction.ipynb"
     - SIR Metapol: "PlagueProject/CodeBookKeeling/SIRMetapol.ipynb"
