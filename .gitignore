@@ -2,3 +2,4 @@
 site/
 .cache/
 docs/PlagueProject/data/private/
+*.pyc
