@@ -18,11 +18,11 @@ def get_Names(data: pd.DataFrame, heading: str) -> list:
     return data[heading]
 
 
-def replace_strings_and_regex(dataframe, heading, patterns):
+def replace_strings_and_regex(dataframe: pd.DataFrame, heading: str, patterns):
     for pattern in patterns:
         dataframe.loc[:, heading] = dataframe.loc[:, heading].apply(
             lambda x: re.sub(pattern, '', x))
-    dataframe.loc[:, heading] = dataframe.loc[: heading].str.strip()
+    # print(dataframe.loc[:, heading].__dict__)
     return dataframe
 
 
