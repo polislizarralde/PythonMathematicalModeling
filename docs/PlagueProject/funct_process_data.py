@@ -1,5 +1,10 @@
 # Python 3.11.2
 # Import packages
+
+from shapely.geometry import shape
+import scipy.integrate as scipy
+import scipy.optimize as optimize
+import scipy.stats as stats
 from thefuzz import process
 from Levenshtein import distance as levenshtein_distance
 import pandas as pd
@@ -98,3 +103,64 @@ def fuzzy_match(
     )
 
     return df_matches
+
+# Adding geographical characteristics to the data
+
+
+def get_area(gpd: gpd.GeoDataFrame):
+    for i in range(len(gpd)):
+        gpd.loc[i, 'area_m2 '] = shape(gpd.loc[i, 'geometry']).area
+        gpd['area_km2 '] = gpd['area_m2 ']/1000000
+    return gpd
+
+
+def get_centroid(gpd: gpd.GeoDataFrame):
+    for i in range(len(gpd)):
+        gpd.loc[i, 'centroid'] = gpd.geometry.centroid[i]
+    return gpd
+
+
+def distance_btw_centroids(gpd: gpd.GeoDataFrame):
+    for i in range(len(gpd)):
+        gpd.loc[i, 'distance'] = gpd.geometry.distance(gpd.centroid[i])
+    return gpd
+
+# Computing the distance between the centroids and shared borders
+
+
+def compute_info(gdp: gpd.GeoDataFrame,
+                 column_name: str,
+                 column_geometry: str = 'geometry',
+                 column_centroid: str = 'centroid',
+                 units: int = 1) -> dict:
+
+    nPolygons = len(gdp)
+    info = defaultdict(dict)
+
+    for i in range(nPolygons):
+        polygon_i = gdp.iloc[i][column_geometry]
+        centroid_i = gdp.loc[i, column_centroid]
+        name_i = gdp.iloc[i][column_name]
+
+        for j in range(i+1, nPolygons):
+            polygon_j = gdp.iloc[j][column_geometry]
+            centroid_j = gdp.loc[j, column_centroid]
+            name_j = gdp.iloc[j][column_name]
+
+            distance = centroid_i.distance(centroid_j) / units * 1.0
+            info["distance"][(i, j)] = distance  # in meters
+            info["distance"][(j, i)] = distance  # in meters
+            info["distance"][(name_i, name_j)] = distance  # in meters
+            info["distance"][(name_j, name_i)] = distance  # in meters
+
+            shared_border = polygon_i.intersection(polygon_j)
+            info["shared_border"][(
+                i, j)] = shared_border.length if shared_border != None else 0  # in meters
+            info["shared_border"][(
+                j, i)] = shared_border.length if shared_border != None else 0  # in meters
+            info["shared_border"][(name_i, name_j)
+                                  ] = info["shared_border"][(i, j)]  # in meters
+            info["shared_border"][(name_j, name_i)
+                                  ] = info["shared_border"][(j, i)]  # in meters
+
+    return info
