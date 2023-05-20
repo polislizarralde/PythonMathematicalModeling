@@ -17,6 +17,9 @@ import json  # for pretty printing
 import geopandas as gpd
 import os
 import re
+import folium
+from mapclassify import classify
+from shapely.geometry import Polygon
 
 
 def get_Names(data: pd.DataFrame, heading: str) -> list:
@@ -107,16 +110,16 @@ def fuzzy_match(
 # Adding geographical characteristics to the data
 
 
-def get_area(gpd: gpd.GeoDataFrame):
+def get_area(gpd: gpd.GeoDataFrame, heading: str = 'geometry'):
     for i in range(len(gpd)):
-        gpd.loc[i, 'area_m2 '] = shape(gpd.loc[i, 'geometry']).area
-        gpd['area_km2 '] = gpd['area_m2 ']/1000000
+        gpd['area_m2'] = shape(gpd.loc[i][heading]).area
+        gpd['area_km2'] = gpd['area_m2']/1000000
     return gpd
 
 
 def get_centroid(gpd: gpd.GeoDataFrame):
     for i in range(len(gpd)):
-        gpd.loc[i, 'centroid'] = gpd.geometry.centroid[i]
+        gpd['centroid'] = gpd.geometry.centroid[i]
     return gpd
 
 
