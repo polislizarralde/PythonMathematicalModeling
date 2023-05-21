@@ -97,6 +97,8 @@ nav:
     - MetapopModelPlague: "PlagueProject/MetapopModelPlague.ipynb"
     - SeasonalMetapopModelPlague: "PlagueProject/SeasMetapopModelPlague.ipynb"
     - FittingMetaPopModel: "PlagueProject/FittingMetapopModelPlague.ipynb"
+    - DatabaseScania: "PlagueProject/databaseScania.ipynb"
+    - funct_process_data: "PlagueProject/funct_process_data.py"
   - Code book Keeling:
     - Season function: "PlagueProject/CodeBookKeeling/SeasonFunction.ipynb"
     - SIR Metapol: "PlagueProject/CodeBookKeeling/SIRMetapol.ipynb"
