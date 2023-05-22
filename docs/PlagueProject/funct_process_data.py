@@ -20,6 +20,8 @@ import re
 import folium
 from mapclassify import classify
 from shapely.geometry import Polygon
+from shapely.geometry import Point
+from datetime import datetime
 
 
 def get_Names(data: pd.DataFrame, heading: str) -> list:
@@ -119,7 +121,7 @@ def get_area(gpd: gpd.GeoDataFrame, heading: str = 'geometry'):
 
 def get_centroid(gpd: gpd.GeoDataFrame):
     for i in range(len(gpd)):
-        gpd['centroid'] = gpd.geometry.centroid[i]
+        gpd.loc[i, 'centroid'] = gpd.geometry.centroid[i]
     return gpd
 
 
