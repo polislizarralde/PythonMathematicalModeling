@@ -1,7 +1,10 @@
 # Python 3.11.2
 # Import packages
 
+from shapely import wkt
 from shapely.geometry import shape
+from shapely.geometry import Polygon
+from shapely.geometry import Point
 import scipy.integrate as scipy
 import scipy.optimize as optimize
 import scipy.stats as stats
@@ -15,13 +18,10 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 import json  # for pretty printing
 import geopandas as gpd
-from shapely import wkt
 import os
 import re
 import folium
 from mapclassify import classify
-from shapely.geometry import Polygon
-from shapely.geometry import Point
 import math
 from datetime import datetime, timedelta
 
