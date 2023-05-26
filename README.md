@@ -1,7 +1,7 @@
 # Mathematical Modeling Projects
 
 This repository contains various mathematical modeling projects using Python,
-with a focus on disease dynamics, population genetics, and ecosystem modeling.
+with a focus on disease dynamics, geographical and economical aspects.
 Our featured project investigates the Plague in Scania using advanced
 mathematical models to uncover hidden patterns and trends.
 
