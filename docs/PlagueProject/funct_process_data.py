@@ -194,6 +194,8 @@ def end_days_between(d1, d2):
 
     return abs((last_day_d2 - first_day_d1).days)
 
+# Defining the seasonal function
+
 
 def gaussian(x, mu, sigma):
     return np.exp(-((x - mu) ** 2) / (2 * sigma ** 2))

@@ -1,13 +1,11 @@
 --find-links=https://girder.github.io/large_image_wheels GDAL
-folium
+# for the website
 geemap
-geopandas
 html5lib
 ipykernel
 leafmap
 lxml
 mapclassify
-matplotlib
 matplotlib
 mkdocs-blog-plugin
 mkdocs-git-authors-plugin
@@ -18,8 +16,25 @@ mkdocs-jupyter
 mkdocs-material
 mkdocs-pdf-export-plugin
 mkdocstrings
+
+# for the code
+geopandas
+folium
 numpy
 pandas
 Pyomo
 SciPy
 seaborn
+shapely
+thefuzz
+Levenshtein
+matplotlib
+pylab
+random
+json
+math
+datetime
+os
+re
+classify
+timedelta
