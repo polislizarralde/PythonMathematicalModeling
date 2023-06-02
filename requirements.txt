@@ -1,12 +1,24 @@
---find-links=https://girder.github.io/large_image_wheels GDAL
+classify==0.5.0
+folium==0.14.0
+geopandas==0.13.0
+mapclassify==2.5.0
+matplotlib==3.7.1
+numpy==1.24.3
+pandas==2.0.2
+python_Levenshtein==0.21.0
+scipy==1.10.1
+Shapely==2.0.1
+thefuzz==0.19.0
+timedelta==2020.12.3
+
 # for the website
+--find-links=https://girder.github.io/large_image_wheels GDAL
 geemap
 html5lib
 ipykernel
 leafmap
 lxml
 mapclassify
-matplotlib
 mkdocs-blog-plugin
 mkdocs-git-authors-plugin
 mkdocs-git-committers-plugin-2
@@ -16,25 +28,3 @@ mkdocs-jupyter
 mkdocs-material
 mkdocs-pdf-export-plugin
 mkdocstrings
-
-# for the code
-geopandas
-folium
-numpy
-pandas
-Pyomo
-SciPy
-seaborn
-shapely
-thefuzz
-Levenshtein
-matplotlib
-pylab
-random
-json
-math
-datetime
-os
-re
-classify
-timedelta
