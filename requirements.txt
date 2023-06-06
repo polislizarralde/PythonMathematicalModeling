@@ -3,8 +3,8 @@ folium==0.14.0
 geopandas==0.13.0
 mapclassify==2.5.0
 matplotlib==3.7.1
-numpy==1.24.3
-pandas==2.0.2
+numpy>=1.18
+pandas>=1.5.3
 python_Levenshtein==0.21.0
 scipy==1.10.1
 Shapely==2.0.1
