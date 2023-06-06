@@ -1,0 +1,3 @@
+[submodule "docs/PlagueProject/data/private"]
+	path = docs/PlagueProject/data/private
+	url = https://github.com/polislizarralde/PrivatePlagueData
