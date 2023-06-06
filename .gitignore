@@ -1,5 +1,4 @@
 .DS_Store
 site/
 .cache/
-docs/PlagueProject/data/private/
 *.pyc
