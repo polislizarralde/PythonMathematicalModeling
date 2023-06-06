@@ -4,7 +4,17 @@
     "ghcr.io/devcontainers/features/python:1": {
       "version" : "3.11",
        "installTools" : true,
-         "installJupyterlab" : true
+        "installJupyterlab" : true
     }
-  }
+  },
+  "postCreateCommand" : "pip3 install -r requirements.txt",
+  "runArgs": [
+    "--privileged"
+  ],
+    "extensions": [
+   "ms-python.python",
+   "ms-toolsai.jupyter",
+   "ms-toolsai.jupyter-renderers"
+  ],
+  "remoteUser": "vscode"
 }
