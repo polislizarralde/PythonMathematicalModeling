@@ -229,8 +229,8 @@ def transmission_matrix_optimized(gdf: gpd.GeoDataFrame, t, beta: float, p: floa
     np.fill_diagonal(centroid_distances, 1)
 
     # Calculate the transmission matrix
-    matrix = (p + seasonal_transmission_rate(t,
-                     bump_center, bump_width, bump_height)) * (pop_products / (centroid_distances**2))
+    matrix = p * (pop_products / (centroid_distances**2)) + seasonal_transmission_rate(t,
+                     bump_center, bump_width, bump_height)
 
     # Set the matrix entry to 'beta + seasonal' for each polygon
     np.fill_diagonal(matrix, beta + seasonal_transmission_rate(t,
