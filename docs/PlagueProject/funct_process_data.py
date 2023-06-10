@@ -15,6 +15,7 @@ import numpy as np
 import pylab as pl
 import random
 import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
 from collections import defaultdict
 import json  # for pretty printing
 import geopandas as gpd
