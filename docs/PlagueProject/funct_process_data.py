@@ -201,48 +201,37 @@ def end_days_between(d1, d2):
 def gaussian(x, mu, sigma):
     return np.exp(-((x - mu) ** 2) / (2 * sigma ** 2))
 
-
 def seasonal_transmission_rate(t, bump_center, bump_width, bump_height):
     return bump_height * gaussian(t % 365, bump_center, bump_width) + bump_height * gaussian(t % 365 - 365, bump_center, bump_width) + bump_height * gaussian(t % 365 + 365, bump_center, bump_width)
 
+def transmission_matrix_beta(gdf: gpd.GeoDataFrame, column_name: str = 'ParishName'):
+    same_names = gdf[column_name].apply(lambda x: gdf[column_name] == x).values
+    beta_matrix = np.zeros_like(same_names, dtype=float)
+    np.fill_diagonal(beta_matrix, 1)
+    return beta_matrix
 
-def transmission_matrix_optimized(gdf: gpd.GeoDataFrame, t, beta: float, p: float, bump_center: float, bump_width: float, bump_height: float, column_geometry: str = 'geometry', column_centroid: str = 'centroid', column_pop: str = 'BEF1699', column_name: str = 'ParishName'):
-
+def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', column_centroid: str = 'centroid', column_pop: str = 'BEF1699', column_name: str = 'ParishName'):
+    
     # Calculate distances between all centroids
     centroid_distances = gdf[column_centroid].apply(
         lambda x: gdf[column_centroid].apply(lambda y: x.distance(y))).values
-
-    # Calculate population products for all pairs
+    
+    # Calculate population products for all pairs of polygons
     pop_products = np.outer(gdf[column_pop], gdf[column_pop])
 
     # Create a boolean matrix to identify intersecting polygons
     intersecting_polygons = gdf[column_geometry].apply(
         lambda x: gdf[column_geometry].intersects(x)).values
-
+    
     # Create a boolean matrix to identify same names
     same_names = gdf[column_name].apply(lambda x: gdf[column_name] == x).values
 
-    # Set centroid distances to infinity for same namer or intersecting polygons
-    centroid_distances[np.logical_or(
-        ~intersecting_polygons, same_names)] = np.inf
+    centroid_distances[np.logical_or(~intersecting_polygons, same_names)] = np.inf
 
-    # Replace diagonal elements in centroid_distances with 1 to avoid division by zero
+    # Replace diagonal elements in centroid_distances with 1 to avoid division by
     np.fill_diagonal(centroid_distances, 1)
 
     # Calculate the transmission matrix
-    matrix = p * (pop_products / (centroid_distances**2)) + seasonal_transmission_rate(t,
-                     bump_center, bump_width, bump_height)
-
-    # Set the matrix entry to 'beta + seasonal' for each polygon
-    np.fill_diagonal(matrix, beta + seasonal_transmission_rate(t,
-                     bump_center, bump_width, bump_height))
-
-    return matrix
-
-
-def transmission_matrix_cached(gdf, t, beta, p, bump_center, bump_width, bump_height, cache):
-    key = (t, beta, p, bump_center, bump_width, bump_height)
-    if key not in cache:
-        cache[key] = transmission_matrix_optimized(
-            gdf, t, beta, p, bump_center, bump_width, bump_height)
-    return cache[key]
+    p_matrix = (pop_products / (centroid_distances**2))
+    np.fill_diagonal(p_matrix, 0)
+    return p_matrix
