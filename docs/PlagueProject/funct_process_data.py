@@ -27,10 +27,12 @@ import math
 from datetime import datetime, timedelta
 import math
 
+# Function to get all parishes from a specific region
+def parishesByregion(df: pd.DataFrame, region: str) -> pd.DataFrame:
+    return df.loc[df['Region'] == region]
 
 def get_Names(data: pd.DataFrame, heading: str) -> list:
     return data[heading]
-
 
 def replace_strings_and_regex(dataframe: pd.DataFrame, heading: str, patterns):
     for pattern in patterns:
@@ -173,6 +175,11 @@ def compute_info(gdp: gpd.GeoDataFrame,
                                   ] = info["shared_border"][(j, i)]  # in meters
 
     return info
+
+# Assigning colors (red -> Plague and blue -> NoPlague)
+def colorByColumn(gpd: gpd.GeoDataFrame, heading: str = 'EndPlaguePeriod'):
+    gpd['color'] = gpd[heading].map(lambda x: 'blue' if pd.isna(x) else 'red')
+    pass
 
 
 def begin_days_between(d1, d2):
