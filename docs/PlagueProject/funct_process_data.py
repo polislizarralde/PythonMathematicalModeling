@@ -26,6 +26,7 @@ from mapclassify import classify
 import math
 from datetime import datetime, timedelta
 import math
+import networkx as nx # for network analysis, graphs
 
 # Function to get all parishes from a specific region
 def parishesByregion(df: pd.DataFrame, region: str) -> pd.DataFrame:
@@ -41,7 +42,6 @@ def replace_strings_and_regex(dataframe: pd.DataFrame, heading: str, patterns):
     # print(dataframe.loc[:, heading].__dict__)
     return dataframe
 
-
 def process_dataframe_rep(df, groupby_column, year_column):
     # Group a Pandas DataFrame by a column
     parish_grp = df.groupby([groupby_column])
@@ -53,7 +53,6 @@ def process_dataframe_rep(df, groupby_column, year_column):
         result_df = pd.concat(
             [result_df, (grp_name[grp_name[year_column] == grp_name[year_column].min()])], axis=0)
     return result_df
-
 
 def process_dataframe(df, column1: str, column2: str):
     aux_dict = {}
@@ -68,16 +67,13 @@ def process_dataframe(df, column1: str, column2: str):
     final_positions = [value['position'] for key, value in aux_dict.items()]
     return df.iloc[final_positions]
 
-
 def check_name(data: pd.DataFrame, heading: str, name: str):
     filt_name = data[heading].str.contains(name, na=False)
     return data.loc[filt_name]
 
-
 def is_similar(name1, name2, threshold=0.8):
     max_len = max(len(name1), len(name2))
     return levenshtein_distance(name1, name2) / max_len < threshold
-
 
 def fuzzy_match(
     df_left, df_right, column_left, column_right, threshold=90, limit=1
@@ -117,19 +113,16 @@ def fuzzy_match(
 
 # Adding geographical characteristics to the data
 
-
 def get_area(gpd: gpd.GeoDataFrame, heading: str = 'geometry'):
     for i in range(len(gpd)):
         gpd['area_m2'] = shape(gpd.loc[i][heading]).area
         gpd['area_km2'] = gpd['area_m2']/1000000
     return gpd
 
-
 def get_centroid(gpd: gpd.GeoDataFrame):
     for i in range(len(gpd)):
         gpd.loc[i, 'centroid'] = gpd.geometry.centroid[i]
     return gpd
-
 
 def distance_btw_centroids(gpd: gpd.GeoDataFrame):
     for i in range(len(gpd)):
@@ -137,7 +130,6 @@ def distance_btw_centroids(gpd: gpd.GeoDataFrame):
     return gpd
 
 # Computing the distance between the centroids and shared borders
-
 
 def compute_info(gdp: gpd.GeoDataFrame,
                  column_name: str,
@@ -181,13 +173,11 @@ def colorByColumn(gpd: gpd.GeoDataFrame, heading: str = 'EndPlaguePeriod'):
     gpd['color'] = gpd[heading].map(lambda x: 'blue' if pd.isna(x) else 'red')
     pass
 
-
 def begin_days_between(d1, d2):
     if (type(d1) == float and math.isnan(d1)) or \
        (type(d2) == float and math.isnan(d2)):
         return None
     return abs((d2 - d1).days)
-
 
 def end_days_between(d1, d2):
     if (type(d1) == float and math.isnan(d1)) or (type(d2) == float and math.isnan(d2)):
@@ -203,7 +193,6 @@ def end_days_between(d1, d2):
     return abs((last_day_d2 - first_day_d1).days)
 
 # Defining the seasonal function
-
 
 def gaussian(x, mu, sigma):
     return np.exp(-((x - mu) ** 2) / (2 * sigma ** 2))
@@ -241,4 +230,5 @@ def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometr
     # Calculate the transmission matrix
     p_matrix = (pop_products / (centroid_distances**2))
     np.fill_diagonal(p_matrix, 0)
-    return p_matrix
+    return p_matrix 
+
