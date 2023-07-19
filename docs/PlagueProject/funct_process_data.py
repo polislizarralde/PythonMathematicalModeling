@@ -194,8 +194,8 @@ def end_days_between(d1, d2):
 
 # Defining the seasonal function
 
-def gaussian(x, mu, sigma):
-    return np.exp(-((x - mu) ** 2) / (2 * sigma ** 2))
+def gaussian(x, media, std):
+    return np.exp(-((x - media) ** 2) / (2 * std ** 2))
 
 def seasonal_transmission_rate(t, bump_center, bump_width, bump_height):
     return bump_height * gaussian(t % 365, bump_center, bump_width) + bump_height * gaussian(t % 365 - 365, bump_center, bump_width) + bump_height * gaussian(t % 365 + 365, bump_center, bump_width)
@@ -232,3 +232,17 @@ def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometr
     np.fill_diagonal(p_matrix, 0)
     return p_matrix 
 
+
+# def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry'):
+#     # Initialize an empty matrix of size n x n (where n is number of polygons)
+#     n = len(gdf)
+#     matrix = np.zeros((n, n))
+
+#     # Loop through each pair of polygons
+#     for i in range(n):
+#         for j in range(i+1, n):  # start from i+1 to avoid redundant calculations
+#             # If polygon i intersects polygon j, set matrix[i][j] and matrix[j][i] to p
+#             if gdf.iloc[i][column_geometry].intersects(gdf.iloc[j][column_geometry]):
+#                 matrix[i][j] = matrix[j][i] = 1  # set both matrix[i][j] and matrix[j][i] to p
+
+#     return matrix
