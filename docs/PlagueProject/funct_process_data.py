@@ -27,6 +27,7 @@ import math
 from datetime import datetime, timedelta
 import math
 import networkx as nx # for network analysis, graphs
+import plotly.express as px
 
 # Function to get all parishes from a specific region
 def parishesByregion(df: pd.DataFrame, region: str) -> pd.DataFrame:
