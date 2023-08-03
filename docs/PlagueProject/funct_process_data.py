@@ -170,7 +170,7 @@ def compute_info(gdp: gpd.GeoDataFrame,
     return info
 
 # Assigning colors (red -> Plague and blue -> NoPlague)
-def colorByColumn(gpd: gpd.GeoDataFrame, heading: str = 'EndPlaguePeriod'):
+def colorByColumn(gpd: gpd.GeoDataFrame, heading: str = 'BeginPlaguePeriod'):
     gpd['color'] = gpd[heading].map(lambda x: 'blue' if pd.isna(x) else 'red')
     pass
 
@@ -233,8 +233,7 @@ def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometr
     np.fill_diagonal(p_matrix, 0)
     return p_matrix 
 
-
-# def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry'):
+# def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', column_centroid: str = 'centroid'):
 #     # Initialize an empty matrix of size n x n (where n is number of polygons)
 #     n = len(gdf)
 #     matrix = np.zeros((n, n))
@@ -242,8 +241,18 @@ def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometr
 #     # Loop through each pair of polygons
 #     for i in range(n):
 #         for j in range(i+1, n):  # start from i+1 to avoid redundant calculations
-#             # If polygon i intersects polygon j, set matrix[i][j] and matrix[j][i] to p
+#             # Get the centroid of each polygon from the GeoDataFrame
+#             centroid_i = gdf.loc[i, column_centroid]
+#             centroid_j = gdf.loc[j, column_centroid]
+#             # Calculate the distance between the centroids in kilometers
+#             distance = centroid_i.distance(centroid_j)/1000
+#             # If polygon i intersects polygon j,
+#             # set matrix[i][j] and matrix[j][i] to 1
 #             if gdf.iloc[i][column_geometry].intersects(gdf.iloc[j][column_geometry]):
-#                 matrix[i][j] = matrix[j][i] = 1  # set both matrix[i][j] and matrix[j][i] to p
+#                 matrix[i][j] = matrix[j][i] = 1  # set both matrix[i][j] and matrix[j][i] to 1
+#             # If polygon i does not intersect polygon j, 
+#             # check that the distance between their centroids is <= 10km
+#             elif distance <= 5:
+#                 matrix[i][j] = matrix[j][i] = 1  # set both matrix[i][j] and matrix[j][i] to 1
 
 #     return matrix
