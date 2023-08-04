@@ -258,7 +258,7 @@ def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometr
             if gdf.iloc[i][column_geometry].intersects(gdf.iloc[j][column_geometry]):
                 matrix[i][j] = matrix[j][i] = 1  # set both matrix[i][j] and matrix[j][i] to 1
             # If polygon i does not intersect polygon j, 
-            # check that the distance between their centroids is <= 10km
+            # check that the distance between their centroids is <= 5km
             elif distance <= 5:
                 matrix[i][j] = matrix[j][i] = 1  # set both matrix[i][j] and matrix[j][i] to 1
 
@@ -266,10 +266,8 @@ def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometr
 
 # def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', column_centroid: str = 'centroid', column_pop: str = 'BEF1699', column_name: str = 'ParishName'):
 #     # Initialize an empty matrix of size n x n (where n is number of polygons)
-#     same_names = gdf[column_name].apply(lambda x: gdf[column_name] == x).values
-#     matrix = np.zeros_like(same_names, dtype=float)
-#     np.fill_diagonal(matrix, 1)
-#     n = len(same_names)    
+#     n = len(gdf)
+#     matrix = np.zeros((n, n))   
 #     # Loop through each pair of polygons
 #     for i in range(n):
 #         for j in range(i+1, n):  # start from i+1 to avoid redundant calculations
@@ -289,15 +287,14 @@ def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometr
 #             # If polygon i intersects polygon j,
 #             # set matrix[i][j] and matrix[j][i] to 1
 #             if gdf.iloc[i][column_geometry].intersects(gdf.iloc[j][column_geometry]) and name_i != name_j:
-#                 matrix[i][j] = matrix[j][i] = pop_product/distance  
-#             # If name_i is equal to name_j, 
-#             # check that the distance between their centroids is <= 10km
-#             elif name_i == name_j:
-#                 matrix[i][j] = matrix[j][i] = np.inf
+#                 matrix[i][j] = matrix[j][i] = pop_product/(distance**2)  
 #             # If polygon i does not intersect polygon j, 
-#             # check that the distance between their centroids is <= 10km
-#             elif distance <= 10:
+#             # check that the distance between their centroids is <= 5km
+#             elif distance <= 5 and name_i != name_j:
 #                 matrix[i][j] = matrix[j][i] = pop_product/(distance**2)  # set both matrix[i][j] and matrix[j][i] to 1
+#             # If name_i is equal to name_j, 
+#             elif name_i == name_j:
+#                 matrix[i][j] = matrix[j][i] = 0    
 #     np.fill_diagonal(matrix, 0)    
 #     return matrix
 
