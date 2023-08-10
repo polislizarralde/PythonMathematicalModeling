@@ -193,6 +193,42 @@ def end_days_between(d1, d2):
 
     return abs((last_day_d2 - first_day_d1).days)
 
+def sort_by_date(gdf, column_date: str = 'new_format_BeginPlaguePeriod'):
+    gdf_copy = gdf.copy()
+    gdf_copy.sort_values(by=[column_date],   # Row or columns names to sort by
+                    axis=0,       # Sort Rows axis = 0
+                    ascending=True,  # Sort ascending or descending?
+                    inplace=True     # Modify the DataFrame in place (do not create a new object)
+                    )
+    gdf_copy.reset_index(drop=True, inplace=True)
+    return gdf_copy
+
+def add_Begin_End_days(gdf, begin_column:str = 'new_format_BeginPlaguePeriod', end_column:str = 'new_format_EndPlaguePeriod', death_column:str = 'VictimsNumber'):
+    gdf_copy = gdf.copy()
+    # Create a new column called "BeginDaysPlague"
+    gdf_copy["BeginDaysPlague"] = gdf.apply(lambda row: begin_days_between(gdf[begin_column].iloc[0]
+                                                                         ,row[begin_column])
+                                                                         , axis=1  # axis = 1 means apply function to each row
+    )
+    
+    # Create a new column called "EndDaysPlague"
+    gdf_copy['EndDaysPlague'] = gdf.apply(lambda row: end_days_between(gdf[begin_column].iloc[0]
+                                            , row[end_column]) if pd.notna(row[end_column]) else None
+                                            , axis=1)
+
+    # Replace NaN values with a value in some columns (e.g., 0)
+    gdf_copy['BeginDaysPlague'].fillna(0, inplace=True)
+    gdf_copy['EndDaysPlague'].fillna(0, inplace=True)
+    gdf_copy[death_column].fillna(0, inplace=True)
+    
+    # Changing the type of some columns from float to integer for the optimization process
+    gdf_copy['BeginDaysPlague'] = gdf_copy['BeginDaysPlague'].astype(int)
+    gdf_copy['EndDaysPlague'] = gdf_copy['EndDaysPlague'].astype(int)
+    gdf_copy[death_column] = gdf_copy['VictimsNumber'].astype(int)
+        
+    gdf_copy.reset_index(drop=True, inplace=True)
+    return gdf_copy
+
 # Defining the seasonal function
 
 def gaussian(x, media, std):
