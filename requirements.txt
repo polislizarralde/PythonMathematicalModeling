@@ -11,6 +11,7 @@ scipy==1.10.1
 Shapely==2.0.1
 thefuzz==0.19.0
 timedelta==2020.12.3
+numba
 
 # for the website
 --find-links=https://girder.github.io/large_image_wheels GDAL
@@ -24,7 +25,7 @@ mkdocs-blog-plugin
 mkdocs-git-authors-plugin
 mkdocs-git-committers-plugin-2
 mkdocs-git-revision-date-localized-plugin
-mkdocs-git-revision-date-plugin
+mkdocs-git-revision-date-plugin 
 mkdocs-jupyter
 mkdocs-material
 mkdocs-pdf-export-plugin
