@@ -29,7 +29,7 @@ import math
 import networkx as nx # for network analysis, graphs
 import plotly.express as px
 import numba as nb
-from numbalsoda import solve_ivp, lsoda_sig, lsoda
+#from numbalsoda import solve_ivp, lsoda_sig, lsoda
 
 # Function to get all parishes from a specific region
 def parishesByregion(df: pd.DataFrame, region: str) -> pd.DataFrame:
