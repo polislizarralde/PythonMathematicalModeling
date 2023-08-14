@@ -28,6 +28,8 @@ from datetime import datetime, timedelta
 import math
 import networkx as nx # for network analysis, graphs
 import plotly.express as px
+import numba as nb
+from numbalsoda import solve_ivp, lsoda_sig, lsoda
 
 # Function to get all parishes from a specific region
 def parishesByregion(df: pd.DataFrame, region: str) -> pd.DataFrame:
@@ -300,74 +302,3 @@ def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometr
 
     return matrix
 
-# def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', column_centroid: str = 'centroid', column_pop: str = 'BEF1699', column_name: str = 'ParishName'):
-#     # Initialize an empty matrix of size n x n (where n is number of polygons)
-#     n = len(gdf)
-#     matrix = np.zeros((n, n))   
-#     # Loop through each pair of polygons
-#     for i in range(n):
-#         for j in range(i+1, n):  # start from i+1 to avoid redundant calculations
-#             # Get the name of each polygon from the GeoDataFrame
-#             name_i = gdf.loc[i, column_name]
-#             name_j = gdf.loc[j, column_name]
-#             # Get the centroid of each polygon from the GeoDataFrame
-#             centroid_i = gdf.loc[i, column_centroid]
-#             centroid_j = gdf.loc[j, column_centroid]
-#             # Get the population of each polygon from the GeoDataFrame
-#             pop_i = gdf.loc[i, column_pop]
-#             pop_j = gdf.loc[j, column_pop]
-#             # Calculate the distance between the centroids in kilometers
-#             distance = centroid_i.distance(centroid_j)/1000
-#             # Calculate the population product
-#             pop_product = pop_i * pop_j
-#             # If polygon i intersects polygon j,
-#             # set matrix[i][j] and matrix[j][i] to 1
-#             if gdf.iloc[i][column_geometry].intersects(gdf.iloc[j][column_geometry]) and name_i != name_j:
-#                 matrix[i][j] = matrix[j][i] = pop_product/(distance**2)  
-#             # If polygon i does not intersect polygon j, 
-#             # check that the distance between their centroids is <= 5km
-#             elif distance <= 5 and name_i != name_j:
-#                 matrix[i][j] = matrix[j][i] = pop_product/(distance**2)  # set both matrix[i][j] and matrix[j][i] to 1
-#             # If name_i is equal to name_j, 
-#             elif name_i == name_j:
-#                 matrix[i][j] = matrix[j][i] = 0    
-#     np.fill_diagonal(matrix, 0)    
-#     return matrix
-
-# def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', 
-#                           column_centroid: str = 'centroid', column_pop: str = 'BEF1699', 
-#                           column_name: str = 'ParishName'):
-#     # Initialize an empty matrix of size n x n (where n is number of polygons)
-#     n = len(gdf)
-#     matrix = np.zeros((n, n), dtype=float)
-
-#     # Loop through each pair of polygons
-#     for i in range(n):
-#         for j in range(i+1, n):  # start from i+1 to avoid redundant calculations
-#             # Get the name of each polygon from the GeoDataFrame
-#             name_i = gdf.loc[i, column_name]
-#             name_j = gdf.loc[j, column_name]
-
-#             # Skip if both polygons are the same
-#             if name_i == name_j:
-#                 continue
-
-#             # Get the centroid of each polygon from the GeoDataFrame
-#             centroid_i = gdf.loc[i, column_centroid]
-#             centroid_j = gdf.loc[j, column_centroid]
-
-#             # Get the population of each polygon from the GeoDataFrame
-#             pop_i = gdf.loc[i, column_pop]
-#             pop_j = gdf.loc[j, column_pop]
-
-#             # Calculate the distance between the centroids in meters
-#             distance = centroid_i.distance(centroid_j)/1000
-
-#             # If polygon i intersects polygon j or the distance between their centroids is <= 10km,
-#             # calculate the population product divided by the square of the distance
-#             if gdf.iloc[i][column_geometry].intersects(gdf.iloc[j][column_geometry]):
-#                 matrix[i][j] = matrix[j][i] = (pop_i * pop_j) / (distance ** 2 if distance > 0 else 1)
-#             elif distance <= 10:
-#                 matrix[i][j] = matrix[j][i] = (pop_i * pop_j) / (distance ** 2 if distance > 0 else 1)
-
-#     return matrix
