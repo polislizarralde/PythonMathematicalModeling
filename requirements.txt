@@ -12,6 +12,7 @@ Shapely==2.0.1
 thefuzz==0.19.0
 timedelta==2020.12.3
 numba
+numbalsoda
 
 # for the website
 --find-links=https://girder.github.io/large_image_wheels GDAL
