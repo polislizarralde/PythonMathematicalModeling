@@ -239,10 +239,10 @@ def gaussian(x, media, std):
 def seasonal_transmission_rate(t, bump_center, bump_width, bump_height):
     return bump_height * gaussian(t % 365, bump_center, bump_width) + bump_height * gaussian(t % 365 - 365, bump_center, bump_width) + bump_height * gaussian(t % 365 + 365, bump_center, bump_width)
 
-def transmission_matrix_beta(gdf: gpd.GeoDataFrame, column_name: str = 'ParishName'):
+def transmission_matrix_beta(gdf: gpd.GeoDataFrame, beta:np.array, column_name: str = 'ParishName'):
     same_names = gdf[column_name].apply(lambda x: gdf[column_name] == x).values
     beta_matrix = np.zeros_like(same_names, dtype=float)
-    np.fill_diagonal(beta_matrix, 1)
+    np.fill_diagonal(beta_matrix, beta) 
     return beta_matrix
 
 def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', column_centroid: str = 'centroid', column_pop: str = 'BEF1699', column_name: str = 'ParishName'):
@@ -272,57 +272,31 @@ def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometr
     np.fill_diagonal(p_matrix, 0)
     return p_matrix 
 
+# Definition without checking if the polygons intersect
+def transmission_matrix2_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', column_centroid: str = 'centroid', column_pop: str = 'BEF1699', column_name: str = 'ParishName'):
+    
+    # Calculate distances between all centroids in meters
+    centroid_distances = gdf[column_centroid].apply(
+        lambda x: gdf[column_centroid].apply(lambda y: x.distance(y))).values
+    
+    # Calculate population products for all pairs of polygons
+    pop_products = np.outer(gdf[column_pop], gdf[column_pop])
 
-#Def matrix connection p considering the distance between centroids when the parishes don't share borders
-# def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', column_centroid: str = 'centroid'):
-#     # Initialize an empty matrix of size n x n (where n is number of polygons)
-#     n = len(gdf)
-#     matrix = np.zeros((n, n))
+    # Create a boolean matrix to identify same names
+    same_names = gdf[column_name].apply(lambda x: gdf[column_name] == x).values
 
-#     # Loop through each pair of polygons
-#     for i in range(n):
-#         for j in range(i+1, n):  # start from i+1 to avoid redundant calculations
-#             # Get the centroid of each polygon from the GeoDataFrame
-#             centroid_i = gdf.loc[i, column_centroid]
-#             centroid_j = gdf.loc[j, column_centroid]
-#             # Calculate the distance between the centroids in kilometers
-#             distance = centroid_i.distance(centroid_j)/1000
-#             # If polygon i intersects polygon j,
-#             # set matrix[i][j] and matrix[j][i] to 1
-#             if gdf.iloc[i][column_geometry].intersects(gdf.iloc[j][column_geometry]):
-#                 matrix[i][j] = matrix[j][i] = 1  # set both matrix[i][j] and matrix[j][i] to 1
-#             # If polygon i does not intersect polygon j, 
-#             # check that the distance between their centroids is <= 5km
-#             elif distance <= 10:
-#                 matrix[i][j] = matrix[j][i] = 1  # set both matrix[i][j] and matrix[j][i] to 1
+    # For polygons with the same name, set the distance to infinity
+    centroid_distances[same_names] = np.inf
 
-#     return matrix
+    # Replace diagonal elements in centroid_distances with 1 to avoid division by zero
+    np.fill_diagonal(centroid_distances, 1)
 
-# #Def matrix connection p considering the distance between centroids when the parishes don't share borders
-# def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', column_centroid: str = 'centroid', column_pop: str = 'BEF1699'):
-#     # Initialize an empty matrix of size n x n (where n is number of polygons)
-#     n = len(gdf)
-#     matrix = np.zeros((n, n))
+    # Calculate the transmission matrix
+    p_weight = (pop_products / (centroid_distances**2))
+    np.fill_diagonal(p_weight, 0)
 
-#     # Loop through each pair of polygons
-#     for i in range(n):
-#         for j in range(i+1, n):  # start from i+1 to avoid redundant calculations
-#             # Get the centroid of each polygon from the GeoDataFrame
-#             centroid_i = gdf.loc[i, column_centroid]
-#             centroid_j = gdf.loc[j, column_centroid]
-#             pop_i = gdf.loc[i, column_pop]
-#             pop_j = gdf.loc[j, column_pop]
-#             # Calculate the distance between the centroids in kilometers
-#             distance = centroid_i.distance(centroid_j)/1000
-#             # Calculate the product between the populations' polygons
-#             pop_product = pop_i * pop_j
-#             # If polygon i intersects polygon j,
-#             # set matrix[i][j] and matrix[j][i] to 1
-#             if gdf.iloc[i][column_geometry].intersects(gdf.iloc[j][column_geometry]):
-#                 matrix[i][j] = matrix[j][i] = pop_product/(distance**2)  # set both matrix[i][j] and matrix[j][i] to 1
-#             # If polygon i does not intersect polygon j, 
-#             # check that the distance between their centroids is <= 5km
-#             elif distance <= 5:
-#                 matrix[i][j] = matrix[j][i] = pop_product/(distance**2)  # set both matrix[i][j] and matrix[j][i] to 1
+    # Calculate the transmission matrix
+    # p_matrix = p_weight * p_coeff
+    # np.fill_diagonal(p_matrix, 0)
+    return p_weight
 
-#     return matrix
