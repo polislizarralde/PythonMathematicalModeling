@@ -231,6 +231,36 @@ def add_Begin_End_days(gdf, begin_column:str = 'new_format_BeginPlaguePeriod', e
     gdf_copy.reset_index(drop=True, inplace=True)
     return gdf_copy
 
+# Function to call the data from the excel files
+def get_parish_data(parish_name, parish_folder):
+    parish_path = os.path.join(parish_folder, parish_name + '.xlsx')
+    parish = pd.read_excel(parish_path, sheet_name='Plague')
+
+    # Convert 'EndDate' to datetime with appropriate format
+    parish['NewEndDate'] = pd.to_datetime(parish['EndDate'], format='%b %Y')
+    parish['NewEndDate'] = parish['NewEndDate'].dt.to_period('M')
+    parish['first_day'] = parish['NewEndDate'].dt.to_timestamp()
+    parish['last_day'] = parish['NewEndDate'].dt.to_timestamp(how='end')
+
+    # Add a column with the days since the first date and then cumsum
+    parish['Days'] = parish['last_day'].dt.daysinmonth
+    parish['Days'] = parish['Days'].cumsum()
+    return parish
+
+# Function to get the population of a specific parish
+def get_parish_info(parish_name, df: pd.DataFrame, column_name='ParishName', column_pop='BEF1699'):
+    pop_df = df[(df[column_name] == parish_name)][column_pop]
+    name_df = df[(df[column_name] == parish_name)][column_name]
+    
+    if not pop_df.empty and not name_df.empty:
+        pop_parish = pop_df.values[0]
+        name_parish = name_df.values[0]
+    else:
+        pop_parish = None
+        name_parish = None
+
+    return pop_parish, name_parish
+
 # Defining the seasonal function
 
 def gaussian(x, media, std):
