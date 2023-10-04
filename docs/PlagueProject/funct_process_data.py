@@ -269,9 +269,16 @@ def gaussian(x, media, std):
 def seasonal_transmission_rate(t, bump_center, bump_width, bump_height):
     return bump_height * gaussian(t % 365, bump_center, bump_width) + bump_height * gaussian(t % 365 - 365, bump_center, bump_width) + bump_height * gaussian(t % 365 + 365, bump_center, bump_width)
 
+# def transmission_matrix_beta(gdf: gpd.GeoDataFrame, beta:np.array, column_name: str = 'ParishName'):
+#     same_names = gdf[column_name].apply(lambda x: gdf[column_name] == x).values
+#     beta_matrix = np.zeros_like(same_names, dtype=float)
+#     np.fill_diagonal(beta_matrix, beta) 
+#     return beta_matrix
+
 def transmission_matrix_beta(gdf: gpd.GeoDataFrame, beta:np.array, column_name: str = 'ParishName'):
-    same_names = gdf[column_name].apply(lambda x: gdf[column_name] == x).values
-    beta_matrix = np.zeros_like(same_names, dtype=float)
+    unique_names = gdf[column_name].unique()
+    len_unique_names = len(unique_names)
+    beta_matrix = np.zeros((len_unique_names,len_unique_names), dtype=float)
     np.fill_diagonal(beta_matrix, beta) 
     return beta_matrix
 
@@ -303,30 +310,58 @@ def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometr
     return p_matrix 
 
 # Definition without checking if the polygons intersect
-def transmission_matrix2_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', column_centroid: str = 'centroid', column_pop: str = 'BEF1699', column_name: str = 'ParishName'):
+# def transmission_matrix2_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', column_centroid: str = 'centroid', column_pop: str = 'BEF1699', column_name: str = 'ParishName'):
     
+#     # Calculate distances between all centroids in meters
+#     centroid_distances = gdf[column_centroid].apply(
+#         lambda x: gdf[column_centroid].apply(lambda y: x.distance(y))).values
+    
+#     # Calculate population products for all pairs of polygons
+#     pop_products = np.outer(gdf[column_pop], gdf[column_pop])
+
+#     # Create a boolean matrix to identify same names
+#     same_names = gdf[column_name].apply(lambda x: gdf[column_name] == x).values
+
+#     # For polygons with the same name, set the distance to infinity
+#     centroid_distances[same_names] = np.inf
+
+#     # Replace diagonal elements in centroid_distances with 1 to avoid division by zero
+#     np.fill_diagonal(centroid_distances, 1)
+
+#     # Calculate the transmission matrix
+#     p_weight = (pop_products / (centroid_distances**2))
+#     np.fill_diagonal(p_weight, 0)
+#     return p_weight
+
+def transmission_matrix2_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', 
+                           column_centroid: str = 'centroid', column_pop: str = 'BEF1699', 
+                           column_name: str = 'ParishName'):
+
+    # Get unique parish names and create a mapping to indices
+    unique_names = gdf[column_name].unique()
+    name_to_index = {name: index for index, name in enumerate(unique_names)}
+
     # Calculate distances between all centroids in meters
-    centroid_distances = gdf[column_centroid].apply(
-        lambda x: gdf[column_centroid].apply(lambda y: x.distance(y))).values
-    
+    centroid_distances = np.zeros((len(unique_names), len(unique_names)))
+    for name1, index1 in name_to_index.items():
+        for name2, index2 in name_to_index.items():
+            if name1 != name2:
+                centroid1 = gdf[gdf[column_name] == name1][column_centroid].values[0]
+                centroid2 = gdf[gdf[column_name] == name2][column_centroid].values[0]
+                centroid_distances[index1, index2] = centroid1.distance(centroid2)
+    # Set diagonal elements to infinity to avoid division by zero later
+    np.fill_diagonal(centroid_distances, np.inf)
+
     # Calculate population products for all pairs of polygons
-    pop_products = np.outer(gdf[column_pop], gdf[column_pop])
-
-    # Create a boolean matrix to identify same names
-    same_names = gdf[column_name].apply(lambda x: gdf[column_name] == x).values
-
-    # For polygons with the same name, set the distance to infinity
-    centroid_distances[same_names] = np.inf
-
-    # Replace diagonal elements in centroid_distances with 1 to avoid division by zero
-    np.fill_diagonal(centroid_distances, 1)
+    pop_products = np.zeros((len(unique_names), len(unique_names)))
+    for name1, index1 in name_to_index.items():
+        for name2, index2 in name_to_index.items():
+            pop1 = gdf[gdf[column_name] == name1][column_pop].values[0]
+            pop2 = gdf[gdf[column_name] == name2][column_pop].values[0]
+            pop_products[index1, index2] = pop1 * pop2
 
     # Calculate the transmission matrix
     p_weight = (pop_products / (centroid_distances**2))
-    np.fill_diagonal(p_weight, 0)
-
-    # Calculate the transmission matrix
-    # p_matrix = p_weight * p_coeff
-    # np.fill_diagonal(p_matrix, 0)
     return p_weight
+
 
