@@ -370,7 +370,14 @@ def transmission_matrix2_p(gdf: gpd.GeoDataFrame, p_coeff:np.array, column_geome
 
     return p_matrix 
 
-def total_transmission_matrix(gdf: gpd.GeoDataFrame, beta:np.array, p_coeff:np.array, column_geometry: str = 'geometry', 
+def getValueAt(array,n, i, j):
+    if i == j: return 0
+    if i < j:
+        return array[int(j*(j-1)/2) + i]
+    return getValueAt(array, n, j, i)
+
+
+def total_transmission_matrix(gdf: gpd.GeoDataFrame, beta:np.array, p_coeff:np.array, n , column_geometry: str = 'geometry', 
                            column_centroid: str = 'centroid', column_pop: str = 'BEF1699', 
                            column_name: str = 'ParishName'):
 
@@ -383,10 +390,10 @@ def total_transmission_matrix(gdf: gpd.GeoDataFrame, beta:np.array, p_coeff:np.a
     np.fill_diagonal(beta_matrix, beta)
 
     # Initialize the p_coeff matrix
-    p_coeff = np.full((len_unique_names, len_unique_names), p_coeff)
+    # p_coeff = np.full((len_unique_names, len_unique_names), p_coeff)
 
     # Initialize the p_matrix
-    p_matrix = np.full((len_unique_names, len_unique_names), 0.0)
+    # p_matrix = np.full((len_unique_names, len_unique_names), 0.0)
 
     # Initialize the gravitational matrix
     gravitational = np.full((len_unique_names, len_unique_names), 0.0)
@@ -399,16 +406,18 @@ def total_transmission_matrix(gdf: gpd.GeoDataFrame, beta:np.array, p_coeff:np.a
             centroid_j = gdf[gdf[column_name] == name_j][column_centroid].values[0]
             pop_i = gdf[gdf[column_name] == name_i][column_pop].values[0]
             pop_j = gdf[gdf[column_name] == name_j][column_pop].values[0]
+            pVal = getValueAt(p_coeff, n, i, j)
+
             if name_i != name_j:
-                gravitational[i,j] = (pop_i * pop_j) / (centroid_i.distance(centroid_j)**2)
+                gravitational[i,j] = pVal*((pop_i * pop_j) / (centroid_i.distance(centroid_j)**2))
                 gravitational[j,i] = gravitational[i,j]
             else:
                 gravitational[i,j] = 0
                 gravitational[j,i] = 0
-    p_matrix = p_coeff * gravitational   
+            
+    # p_matrix = p_coeff * gravitational   
 
-    total_transmission_matrix = beta_matrix + p_matrix 
-    return total_transmission_matrix  
+    return beta_matrix + gravitational  
 
 # def transmission_matrix2_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', 
 #                            column_centroid: str = 'centroid', column_pop: str = 'BEF1699', 
