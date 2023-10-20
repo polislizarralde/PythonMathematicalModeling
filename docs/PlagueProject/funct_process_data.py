@@ -30,6 +30,8 @@ import networkx as nx # for network analysis, graphs
 import plotly.express as px
 import numba as nb
 #from numbalsoda import solve_ivp, lsoda_sig, lsoda
+from skopt import gp_minimize # for Bayesian optimization
+
 
 # Function to get all parishes from a specific region
 def parishesByregion(df: pd.DataFrame, region: str) -> pd.DataFrame:
@@ -275,13 +277,6 @@ def seasonal_transmission_rate(t, bump_center, bump_width, bump_height):
 #     np.fill_diagonal(beta_matrix, beta) 
 #     return beta_matrix
 
-def transmission_matrix_beta(gdf: gpd.GeoDataFrame, beta:np.array, column_name: str = 'ParishName'):
-    unique_names = gdf[column_name].unique()
-    len_unique_names = len(unique_names)
-    beta_matrix = np.zeros((len_unique_names,len_unique_names), dtype=float)
-    np.fill_diagonal(beta_matrix, beta) 
-    return beta_matrix
-
 def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', column_centroid: str = 'centroid', column_pop: str = 'BEF1699', column_name: str = 'ParishName'):
     
     # Calculate distances between all centroids in meters
@@ -333,35 +328,264 @@ def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometr
 #     np.fill_diagonal(p_weight, 0)
 #     return p_weight
 
-def transmission_matrix2_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', 
+def transmission_matrix_beta(gdf: gpd.GeoDataFrame, beta:np.array, column_name: str = 'ParishName'):
+    unique_names = gdf[column_name].unique()
+    len_unique_names = len(unique_names)
+    beta_matrix = np.zeros((len_unique_names,len_unique_names), dtype=float)
+    np.fill_diagonal(beta_matrix, beta) 
+    return beta_matrix
+
+def transmission_matrix2_p(gdf: gpd.GeoDataFrame, p_coeff:np.array, column_geometry: str = 'geometry', 
                            column_centroid: str = 'centroid', column_pop: str = 'BEF1699', 
                            column_name: str = 'ParishName'):
 
-    # Get unique parish names and create a mapping to indices
+    # Get unique parish names 
     unique_names = gdf[column_name].unique()
-    name_to_index = {name: index for index, name in enumerate(unique_names)}
+    len_unique_names = len(unique_names)
 
-    # Calculate distances between all centroids in meters
-    centroid_distances = np.zeros((len(unique_names), len(unique_names)))
-    for name1, index1 in name_to_index.items():
-        for name2, index2 in name_to_index.items():
-            if name1 != name2:
-                centroid1 = gdf[gdf[column_name] == name1][column_centroid].values[0]
-                centroid2 = gdf[gdf[column_name] == name2][column_centroid].values[0]
-                centroid_distances[index1, index2] = centroid1.distance(centroid2)
-    # Set diagonal elements to infinity to avoid division by zero later
-    np.fill_diagonal(centroid_distances, np.inf)
+    # Initialize the p_coeff matrix
+    p_coeff = np.full((len_unique_names, len_unique_names), p_coeff)
 
-    # Calculate population products for all pairs of polygons
-    pop_products = np.zeros((len(unique_names), len(unique_names)))
-    for name1, index1 in name_to_index.items():
-        for name2, index2 in name_to_index.items():
-            pop1 = gdf[gdf[column_name] == name1][column_pop].values[0]
-            pop2 = gdf[gdf[column_name] == name2][column_pop].values[0]
-            pop_products[index1, index2] = pop1 * pop2
+    # Initialize the p_matrix
+    p_matrix = np.full((len_unique_names, len_unique_names), 0.0)
 
-    # Calculate the transmission matrix
-    p_weight = (pop_products / (centroid_distances**2))
-    return p_weight
+    # Initialize the gravitational matrix
+    gravitational = np.full((len_unique_names, len_unique_names), 0.0)
+
+    for i in range(len_unique_names):
+        for j in range(i+1,len_unique_names):
+            name_i = unique_names[i]
+            name_j = unique_names[j]
+            centroid_i = gdf[gdf[column_name] == name_i][column_centroid].values[0]
+            centroid_j = gdf[gdf[column_name] == name_j][column_centroid].values[0]
+            pop_i = gdf[gdf[column_name] == name_i][column_pop].values[0]
+            pop_j = gdf[gdf[column_name] == name_j][column_pop].values[0]
+            if name_i != name_j:
+                gravitational[i,j] = (pop_i * pop_j) / (centroid_i.distance(centroid_j)**2)
+                gravitational[j,i] = gravitational[i,j]
+            else:
+                gravitational[i,j] = 0
+                gravitational[j,i] = 0
+    p_matrix = p_coeff * gravitational   
+
+    return p_matrix 
+
+def total_transmission_matrix(gdf: gpd.GeoDataFrame, beta:np.array, p_coeff:np.array, column_geometry: str = 'geometry', 
+                           column_centroid: str = 'centroid', column_pop: str = 'BEF1699', 
+                           column_name: str = 'ParishName'):
+
+    # Get unique parish names 
+    unique_names = gdf[column_name].unique()
+    len_unique_names = len(unique_names)
+
+    # Initialize the beta matrix
+    beta_matrix = np.zeros((len_unique_names, len_unique_names), dtype=float)
+    np.fill_diagonal(beta_matrix, beta)
+
+    # Initialize the p_coeff matrix
+    p_coeff = np.full((len_unique_names, len_unique_names), p_coeff)
+
+    # Initialize the p_matrix
+    p_matrix = np.full((len_unique_names, len_unique_names), 0.0)
+
+    # Initialize the gravitational matrix
+    gravitational = np.full((len_unique_names, len_unique_names), 0.0)
+
+    for i in range(len_unique_names):
+        for j in range(i+1,len_unique_names):
+            name_i = unique_names[i]
+            name_j = unique_names[j]
+            centroid_i = gdf[gdf[column_name] == name_i][column_centroid].values[0]
+            centroid_j = gdf[gdf[column_name] == name_j][column_centroid].values[0]
+            pop_i = gdf[gdf[column_name] == name_i][column_pop].values[0]
+            pop_j = gdf[gdf[column_name] == name_j][column_pop].values[0]
+            if name_i != name_j:
+                gravitational[i,j] = (pop_i * pop_j) / (centroid_i.distance(centroid_j)**2)
+                gravitational[j,i] = gravitational[i,j]
+            else:
+                gravitational[i,j] = 0
+                gravitational[j,i] = 0
+    p_matrix = p_coeff * gravitational   
+
+    total_transmission_matrix = beta_matrix + p_matrix 
+    return total_transmission_matrix  
+
+# def transmission_matrix2_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', 
+#                            column_centroid: str = 'centroid', column_pop: str = 'BEF1699', 
+#                            column_name: str = 'ParishName'):
+
+#     # Get unique parish names and create a mapping to indices
+#     unique_names = gdf[column_name].unique()
+#     name_to_index = {name: index for index, name in enumerate(unique_names)}
+
+#     # Calculate distances between all centroids in meters
+#     centroid_distances = np.zeros((len(unique_names), len(unique_names)))
+#     for name1, index1 in name_to_index.items():
+#         for name2, index2 in name_to_index.items():
+#             if name1 != name2:
+#                 centroid1 = gdf[gdf[column_name] == name1][column_centroid].values[0]
+#                 centroid2 = gdf[gdf[column_name] == name2][column_centroid].values[0]
+#                 centroid_distances[index1, index2] = centroid1.distance(centroid2)
+#     # Set diagonal elements to infinity to avoid division by zero later
+#     np.fill_diagonal(centroid_distances, np.inf)
+
+#     # Calculate population products for all pairs of polygons
+#     pop_products = np.zeros((len(unique_names), len(unique_names)))
+#     for name1, index1 in name_to_index.items():
+#         for name2, index2 in name_to_index.items():
+#             pop1 = gdf[gdf[column_name] == name1][column_pop].values[0]
+#             pop2 = gdf[gdf[column_name] == name2][column_pop].values[0]
+#             pop_products[index1, index2] = pop1 * pop2
+
+#     # Calculate the transmission matrix
+#     p_weight = (pop_products / (centroid_distances**2))
+#     return p_weight
 
 
+# def get_parish_data(parish_name, parish_folder):
+#     parish_path = os.path.join(parish_folder, parish_name + '.xlsx')
+#     parish = pd.read_excel(parish_path, sheet_name='Plague')
+
+#     # Rename two columns
+#     parish = parish.rename(columns={'CumDeaths': 'VictimsNumber', 'EndDate': 'EndPlaguePeriod'})
+    
+#     # Convert 'EndPlaguePeriod' to datetime with appropriate format
+#     parish['NewEndDate'] = pd.to_datetime(parish['EndPlaguePeriod'], format='%b %Y')
+#     parish['NewEndDate'] = parish['NewEndDate'].dt.to_period('M')
+#     parish['first_day'] = parish['NewEndDate'].dt.to_timestamp()
+#     parish['last_day'] = parish['NewEndDate'].dt.to_timestamp(how='end')
+
+#     # Add a column with the days since the first date and then cumsum
+#     parish['EndDaysPlague'] = parish['last_day'].dt.daysinmonth
+#     parish['EndDaysPlague'] = parish['EndDaysPlague'].cumsum()
+#     return parish
+
+# # Create a dictionary
+# parish_file_dict ={ "YSTAD": get_parish_data('Ystad', southeast_parishes_folder)
+#                    , "SKÅRBY": get_parish_data('Skarby', southeast_parishes_folder)
+#                    , "SNÅRESTAD": get_parish_data('Snarestad', southeast_parishes_folder)
+#                    , "ÖVED": get_parish_data('Oved', middle_parishes_folder)
+#                    , "SÖDRA ÅSUM": get_parish_data('SodraAsum', middle_parishes_folder)
+#                    , "BARSEBÄCK": get_parish_data('Barseback', southwest_parishes_folder)
+#                    , "LILLA BEDDINGE": get_parish_data('LillaBeddinge', southwest_parishes_folder)
+#                    , "RÄNG": get_parish_data('Rang', southwest_parishes_folder)
+#                    , "SVENSTORP": get_parish_data('Svenstorp', southwest_parishes_folder)
+#                    }
+
+
+# dict_parish ={}
+# grouped_by_parish = example.groupby('ParishName')
+# group_dict = {}
+# for name, data in grouped_by_parish:
+#     group_dict[name] = data
+
+# errors = np.zeros(n)
+# for i in range(n):
+#     current_parish = model_input.patchNames()[i]
+#     current_df = group_dict[current_parish]
+#     len_data_parish = len(current_df)
+#     #print(current_parish, current_df, len_data_parish)
+#     # If we only have one data point, we can't calculate the error
+#     if len_data_parish < 2:         
+#         print(current_parish)    
+#         initial_position = current_df['BeginDaysPlague'].values[0]
+#         final_position = current_df['EndDaysPlague'].values[0]
+#         deaths = current_df['VictimsNumber'].values[0]
+#         if (deaths != 0 and final_position != 0):
+#             errors[i] = ((initial_position - 1.0)**2 + (final_position - deaths)**2)
+#         else:
+#             errors[i] = ((initial_position - 1.0)**2)
+#         print(current_parish, initial_position, final_position, deaths,errors[i])
+#     else:
+#         print(current_parish + ' has more than one data point')
+#         point_error = 0
+#         for j in range(len(data_by_parish.get_group(current_parish))):
+#             position = current_df['BeginDaysPlague'].values[j]
+#             monthly_deaths = current_df['VictimsNumber'].values[j]
+#             point_error = (position - monthly_deaths)**2
+#             errors[i] = errors[i] + point_error
+#         print(current_parish, errors[i])
+
+# # Calculate the total error
+# totalError = np.sum(errors)
+# print(totalError)
+
+# # Define the objective function to minimize (sum of squared errors) Slow version
+# def objectiveFunction(parameters, gdf: gpd.GeoDataFrame, column_name: str = 'ParishName'
+#                       , beginTime: str = 'BeginDaysPlague', endTime: str = 'EndDaysPlague'
+#                         , deathData: str = 'VictimsNumber'
+#                     ):
+#     n = model_input.n
+#     # Reshape parameters back to their original shapes
+#     beta: np.array = parameters[:n].reshape(n,)
+#     mu:  np.array = parameters[n:2*n].reshape(n,)
+
+#     # First, we reshape the  p_coeff vector into a lower triangular matrix
+#     p_coeff_lower = np.tril(parameters[2*n:].reshape(n, n))
+    
+#     # Then, we add the transpose to itself, subtracting the diagonal (which was added twice)
+#     p_coeff: np.array = p_coeff_lower + p_coeff_lower.T - np.diag(np.diag(p_coeff_lower))
+
+#     model_info = {'model': SEIRD_model,
+#                   'init': {
+#                       'S': model_input.S0,
+#                       'E': model_input.E0,
+#                       'I': model_input.I0,
+#                       'R': model_input.R0,
+#                       'D': model_input.D0,
+#                   },
+#                   'gdf': example,
+#                   # defining the initial values for the model
+#                   'beta': beta,
+#                   'p_coeff': p_coeff,
+#                   'mu': mu,
+#                   'gamma': 0.4,
+#                   'sigma': 0.17,
+#                   'bump_center': 0.0,
+#                   'bump_width': 0.0,
+#                   'bump_height': 0.0,
+#                   'N': model_input.patchPop(),
+#                   'n': model_input.n,
+#                   'T': model_input.maxDays()}
+
+#     model_sol = generate_sol(model_info)
+#     totalError = 0
+#     n = model_info['n']
+
+#     # Create a dictionary where the key is the parish name and the value is the dataframe
+#     grouped_by_parish = gdf.groupby(column_name)
+#     group_dict = {}
+#     for name, data in grouped_by_parish:
+#         group_dict[name] = data
+
+#     # Calculate the error for each patch
+#     errors = np.zeros(n)
+        
+#     for i in range(n):
+#         current_parish = model_input.patchNames()[i]
+#         current_df = group_dict[current_parish]
+#         len_data_parish = len(current_df)
+#         if len_data_parish < 2:         
+#             initial_position = current_df[beginTime].values[0]
+#             final_position = current_df[endTime].values[0]
+#             deaths = current_df[deathData].values[0]
+#             if (deaths != 0 and final_position != 0):
+#                 try:
+#                     errors[i] = ((model_sol['D'][i][initial_position] - 1.0)**2 + (
+#                         model_sol['D'][i][final_position] - deaths)**2)
+#                 except:
+#                     print(
+#                         f"Error at: n={n}, i={i}, final_position={final_position}, len(model_sol['D'])= {len(model_sol['D'])}, model_sol['D'][i] = {model_sol['D'][i]}, deathData[i] = {deathData[i]}")
+#             else:
+#                 errors[i] = ((model_sol['D'][i][initial_position] - 1.0)**2)
+#         else:
+#             point_error = 0
+#             for j in range(len_data_parish):
+#                 position = current_df[endTime].values[j]
+#                 monthly_deaths = current_df[deathData].values[j]
+#                 point_error = (model_sol['D'][i][position] - monthly_deaths)**2
+#                 errors[i] = errors[i] + point_error
+    
+#     # Calculate the total error
+#     totalError = np.sum(errors)
+#     return totalError
