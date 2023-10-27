@@ -197,6 +197,12 @@ def end_days_between(d1, d2):
 
     return abs((last_day_d2 - first_day_d1).days)
 
+def convert_to_int(row, death_col : str ='VictimsNumber'):
+    if pd.notna(row[death_col]):
+        return int(row[death_col])
+    else:
+        return None
+
 def sort_by_date(gdf, column_date: str = 'new_format_BeginPlaguePeriod'):
     gdf_copy = gdf.copy()
     gdf_copy.sort_values(by=[column_date],   # Row or columns names to sort by
@@ -207,7 +213,7 @@ def sort_by_date(gdf, column_date: str = 'new_format_BeginPlaguePeriod'):
     gdf_copy.reset_index(drop=True, inplace=True)
     return gdf_copy
 
-def add_Begin_End_days(gdf, begin_column:str = 'new_format_BeginPlaguePeriod', end_column:str = 'new_format_EndPlaguePeriod', death_column:str = 'VictimsNumber'):
+def add_Begin_End_days(gdf, begin_column:str = 'new_format_BeginPlaguePeriod', end_column:str = 'new_format_EndPlaguePeriod'):
     gdf_copy = gdf.copy()
     # Create a new column called "BeginDaysPlague"
     gdf_copy["BeginDaysPlague"] = gdf.apply(lambda row: begin_days_between(gdf[begin_column].iloc[0]
@@ -223,12 +229,12 @@ def add_Begin_End_days(gdf, begin_column:str = 'new_format_BeginPlaguePeriod', e
     # Replace NaN values with a value in some columns (e.g., 0)
     gdf_copy['BeginDaysPlague'].fillna(0, inplace=True)
     gdf_copy['EndDaysPlague'].fillna(0, inplace=True)
-    gdf_copy[death_column].fillna(0, inplace=True)
+    #gdf_copy[death_column].fillna(None, inplace=True)
     
     # Changing the type of some columns from float to integer for the optimization process
     gdf_copy['BeginDaysPlague'] = gdf_copy['BeginDaysPlague'].astype(int)
     gdf_copy['EndDaysPlague'] = gdf_copy['EndDaysPlague'].astype(int)
-    gdf_copy[death_column] = gdf_copy['VictimsNumber'].astype(int)
+    #gdf_copy[death_column] = gdf_copy['VictimsNumber'].astype(int)
         
     gdf_copy.reset_index(drop=True, inplace=True)
     return gdf_copy
@@ -328,12 +334,144 @@ def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometr
 #     np.fill_diagonal(p_weight, 0)
 #     return p_weight
 
-def transmission_matrix_beta(gdf: gpd.GeoDataFrame, beta:np.array, column_name: str = 'ParishName'):
+# def transmission_matrix_beta(gdf: gpd.GeoDataFrame, beta:np.array, column_name: str = 'ParishName'):
+#     unique_names = gdf[column_name].unique()
+#     len_unique_names = len(unique_names)
+#     beta_matrix = np.zeros((len_unique_names,len_unique_names), dtype=float)
+#     np.fill_diagonal(beta_matrix, beta) 
+#     return beta_matrix
+
+# Transmission matrix defined for SCENARIO 1. 
+def trans_matrix1(gdf: gpd.GeoDataFrame, beta:float, p:float, column_name: str = 'ParishName', column_geometry: str = 'geometry'):
     unique_names = gdf[column_name].unique()
     len_unique_names = len(unique_names)
-    beta_matrix = np.zeros((len_unique_names,len_unique_names), dtype=float)
-    np.fill_diagonal(beta_matrix, beta) 
-    return beta_matrix
+    trans_matrix = np.full((len_unique_names,len_unique_names),p, dtype=float)
+    for i in range(len_unique_names):
+        for j in range(i+1, len_unique_names): 
+            polygon_i = gdf[gdf[column_name] == unique_names[i]][column_geometry].values[0]
+            polygon_j = gdf[gdf[column_name] == unique_names[j]][column_geometry].values[0]
+            # If polygons don't touch, set value in trans_matrix to 0
+            if not polygon_i.touches(polygon_j):
+                trans_matrix[i,j] = 0
+                trans_matrix[j,i] = 0
+    np.fill_diagonal(trans_matrix, beta) 
+    return trans_matrix
+
+# Transmission matrix defined for SCENARIO 2 and SCENARIO 3. 
+def trans_matrix2(gdf: gpd.GeoDataFrame, beta, p:float, column_name: str = 'ParishName', column_geometry: str = 'geometry'):
+    unique_names = gdf[column_name].unique()
+    len_unique_names = len(unique_names)
+    trans_matrix = np.full((len_unique_names,len_unique_names),p, dtype=float)
+    for i in range(len_unique_names):
+        for j in range(i, len_unique_names): 
+            if i != j:
+                polygon_i = gdf[gdf[column_name] == unique_names[i]][column_geometry].values[0]
+                polygon_j = gdf[gdf[column_name] == unique_names[j]][column_geometry].values[0]
+                # If polygons don't touch, set value in trans_matrix to 0
+                if not polygon_i.touches(polygon_j):
+                    trans_matrix[i,j] = 0
+                    trans_matrix[j,i] = 0
+            else:
+                trans_matrix[i,j] = beta[i]
+    return trans_matrix
+
+def getValueAt(array, n, i, j):
+    if i == j: return 0
+    if i < j:
+        return array[int(j*(j-1)/2) + i]
+    return getValueAt(array, n, j, i)
+
+# Transmission matrix defined for SCENARIO 4.
+def trans_matrix4(gdf: gpd.GeoDataFrame, beta:np.array, p:np.array, n, column_name: str = 'ParishName', column_geometry: str = 'geometry'):
+    # Get unique parish names 
+    unique_names = gdf[column_name].unique()
+    len_unique_names = len(unique_names)
+
+    # Initialize the beta matrix
+    beta_matrix = np.zeros((len_unique_names, len_unique_names), dtype=float)
+    np.fill_diagonal(beta_matrix, beta)
+
+    # Initialize the transmission matrix between patches
+    trans_matrix = np.full((len_unique_names, len_unique_names), 0.0, dtype=float)
+
+    for i in range(len_unique_names):
+        for j in range(i+1,len_unique_names):
+            name_i = unique_names[i]
+            name_j = unique_names[j]
+            polygon_i = gdf[gdf[column_name] == name_i][column_geometry].values[0]
+            polygon_j = gdf[gdf[column_name] == name_j][column_geometry].values[0]
+            pVal = getValueAt(p, n, i, j)
+
+            if polygon_i.touches(polygon_j) and name_i != name_j:
+                trans_matrix[i,j] = pVal
+                trans_matrix[j,i] = trans_matrix[i,j]
+            else:
+                trans_matrix[i,j] = 0
+                trans_matrix[j,i] = 0
+
+    return beta_matrix + trans_matrix  
+
+# def create_symmetric_matrix(array, n):
+#     # Create an empty matrix
+#     matrixA = np.zeros((n,n))
+    
+#     # Fill the upper triangular part of the matrix using advanced indexing
+#     for i in range(n-1):
+#         matrixA[i+1, :i+1] = array[int(i*(i+1)/2) : int(i*(i+1)/2) + (i + 1)]
+#     # Make the matrix symmetric by adding it to its transpose and subtracting the diagonal
+#     npSymMatrixA = matrixA + matrixA.T - np.diag(matrixA.diagonal())    
+#     return npSymMatrixA
+
+# # p = create_symmetric_matrix(np.array([1,2,3,4,5,6]), 4)
+# # print(p)
+
+# # def getValueAt(array,n, i, j):
+# #     if i == j: return 0
+# #     if i < j:
+# #         return array[int(j*(j-1)/2) + i]
+# #     return getValueAt(array, n, j, i)
+
+# print("=====")
+# # print the matrix using getValueAt function
+# for i in range(4):
+#     for j in range(4):
+#         print(getValueAt([1,2,3,4,5,6], 4, i, j), end=' ')
+#     print()
+
+
+def total_transmission_matrix(gdf: gpd.GeoDataFrame, beta:np.array, p_coeff:np.array, n , column_geometry: str = 'geometry', 
+                           column_centroid: str = 'centroid', column_pop: str = 'BEF1699', 
+                           column_name: str = 'ParishName'):
+
+    # Get unique parish names 
+    unique_names = gdf[column_name].unique()
+    len_unique_names = len(unique_names)
+
+    # Initialize the beta matrix
+    beta_matrix = np.zeros((len_unique_names, len_unique_names), dtype=float)
+    np.fill_diagonal(beta_matrix, beta)
+
+    # Initialize the gravitational matrix
+    gravitational = np.full((len_unique_names, len_unique_names), 0.0)
+
+    for i in range(len_unique_names):
+        for j in range(i+1,len_unique_names):
+            name_i = unique_names[i]
+            name_j = unique_names[j]
+            centroid_i = gdf[gdf[column_name] == name_i][column_centroid].values[0]
+            centroid_j = gdf[gdf[column_name] == name_j][column_centroid].values[0]
+            pop_i = gdf[gdf[column_name] == name_i][column_pop].values[0]
+            pop_j = gdf[gdf[column_name] == name_j][column_pop].values[0]
+            pVal = getValueAt(p_coeff, n, i, j)
+
+            if name_i != name_j:
+                gravitational[i,j] = pVal*((pop_i * pop_j) / (centroid_i.distance(centroid_j)**2))
+                gravitational[j,i] = gravitational[i,j]
+            else:
+                gravitational[i,j] = 0
+                gravitational[j,i] = 0
+
+    return beta_matrix + gravitational  
 
 def transmission_matrix2_p(gdf: gpd.GeoDataFrame, p_coeff:np.array, column_geometry: str = 'geometry', 
                            column_centroid: str = 'centroid', column_pop: str = 'BEF1699', 
@@ -369,55 +507,6 @@ def transmission_matrix2_p(gdf: gpd.GeoDataFrame, p_coeff:np.array, column_geome
     p_matrix = p_coeff * gravitational   
 
     return p_matrix 
-
-def getValueAt(array,n, i, j):
-    if i == j: return 0
-    if i < j:
-        return array[int(j*(j-1)/2) + i]
-    return getValueAt(array, n, j, i)
-
-
-def total_transmission_matrix(gdf: gpd.GeoDataFrame, beta:np.array, p_coeff:np.array, n , column_geometry: str = 'geometry', 
-                           column_centroid: str = 'centroid', column_pop: str = 'BEF1699', 
-                           column_name: str = 'ParishName'):
-
-    # Get unique parish names 
-    unique_names = gdf[column_name].unique()
-    len_unique_names = len(unique_names)
-
-    # Initialize the beta matrix
-    beta_matrix = np.zeros((len_unique_names, len_unique_names), dtype=float)
-    np.fill_diagonal(beta_matrix, beta)
-
-    # Initialize the p_coeff matrix
-    # p_coeff = np.full((len_unique_names, len_unique_names), p_coeff)
-
-    # Initialize the p_matrix
-    # p_matrix = np.full((len_unique_names, len_unique_names), 0.0)
-
-    # Initialize the gravitational matrix
-    gravitational = np.full((len_unique_names, len_unique_names), 0.0)
-
-    for i in range(len_unique_names):
-        for j in range(i+1,len_unique_names):
-            name_i = unique_names[i]
-            name_j = unique_names[j]
-            centroid_i = gdf[gdf[column_name] == name_i][column_centroid].values[0]
-            centroid_j = gdf[gdf[column_name] == name_j][column_centroid].values[0]
-            pop_i = gdf[gdf[column_name] == name_i][column_pop].values[0]
-            pop_j = gdf[gdf[column_name] == name_j][column_pop].values[0]
-            pVal = getValueAt(p_coeff, n, i, j)
-
-            if name_i != name_j:
-                gravitational[i,j] = pVal*((pop_i * pop_j) / (centroid_i.distance(centroid_j)**2))
-                gravitational[j,i] = gravitational[i,j]
-            else:
-                gravitational[i,j] = 0
-                gravitational[j,i] = 0
-            
-    # p_matrix = p_coeff * gravitational   
-
-    return beta_matrix + gravitational  
 
 # def transmission_matrix2_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', 
 #                            column_centroid: str = 'centroid', column_pop: str = 'BEF1699', 
