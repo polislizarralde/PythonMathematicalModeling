@@ -283,32 +283,32 @@ def seasonal_transmission_rate(t, bump_center, bump_width, bump_height):
 #     np.fill_diagonal(beta_matrix, beta) 
 #     return beta_matrix
 
-def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', column_centroid: str = 'centroid', column_pop: str = 'BEF1699', column_name: str = 'ParishName'):
+# def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', column_centroid: str = 'centroid', column_pop: str = 'BEF1699', column_name: str = 'ParishName'):
     
-    # Calculate distances between all centroids in meters
-    centroid_distances = gdf[column_centroid].apply(
-        lambda x: gdf[column_centroid].apply(lambda y: x.distance(y))).values
+#     # Calculate distances between all centroids in meters
+#     centroid_distances = gdf[column_centroid].apply(
+#         lambda x: gdf[column_centroid].apply(lambda y: x.distance(y))).values
     
-    # Calculate population products for all pairs of polygons
-    pop_products = np.outer(gdf[column_pop], gdf[column_pop])
+#     # Calculate population products for all pairs of polygons
+#     pop_products = np.outer(gdf[column_pop], gdf[column_pop])
 
-    # Create a boolean matrix to identify intersecting polygons
-    intersecting_polygons = gdf[column_geometry].apply(
-        lambda x: gdf[column_geometry].intersects(x)).values
+#     # Create a boolean matrix to identify intersecting polygons
+#     intersecting_polygons = gdf[column_geometry].apply(
+#         lambda x: gdf[column_geometry].intersects(x)).values
     
-    # Create a boolean matrix to identify same names
-    same_names = gdf[column_name].apply(lambda x: gdf[column_name] == x).values
+#     # Create a boolean matrix to identify same names
+#     same_names = gdf[column_name].apply(lambda x: gdf[column_name] == x).values
 
-    # For non-intersecting polygons with the same name, set the distance to infinity
-    centroid_distances[np.logical_or(~intersecting_polygons, same_names)] = np.inf
+#     # For non-intersecting polygons with the same name, set the distance to infinity
+#     centroid_distances[np.logical_or(~intersecting_polygons, same_names)] = np.inf
 
-    # Replace diagonal elements in centroid_distances with 1 to avoid division by
-    np.fill_diagonal(centroid_distances, 1)
+#     # Replace diagonal elements in centroid_distances with 1 to avoid division by
+#     np.fill_diagonal(centroid_distances, 1)
 
-    # Calculate the transmission matrix
-    p_matrix = (pop_products / (centroid_distances**2))
-    np.fill_diagonal(p_matrix, 0)
-    return p_matrix 
+#     # Calculate the transmission matrix
+#     p_matrix = (pop_products / (centroid_distances**2))
+#     np.fill_diagonal(p_matrix, 0)
+#     return p_matrix 
 
 # Definition without checking if the polygons intersect
 # def transmission_matrix2_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', column_centroid: str = 'centroid', column_pop: str = 'BEF1699', column_name: str = 'ParishName'):
@@ -341,39 +341,39 @@ def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometr
 #     np.fill_diagonal(beta_matrix, beta) 
 #     return beta_matrix
 
-# Transmission matrix defined for SCENARIO 1. 
-def trans_matrix1(gdf: gpd.GeoDataFrame, beta:float, p:float, column_name: str = 'ParishName', column_geometry: str = 'geometry'):
-    unique_names = gdf[column_name].unique()
-    len_unique_names = len(unique_names)
-    trans_matrix = np.full((len_unique_names,len_unique_names),p, dtype=float)
-    for i in range(len_unique_names):
-        for j in range(i+1, len_unique_names): 
-            polygon_i = gdf[gdf[column_name] == unique_names[i]][column_geometry].values[0]
-            polygon_j = gdf[gdf[column_name] == unique_names[j]][column_geometry].values[0]
-            # If polygons don't touch, set value in trans_matrix to 0
-            if not polygon_i.touches(polygon_j):
-                trans_matrix[i,j] = 0
-                trans_matrix[j,i] = 0
-    np.fill_diagonal(trans_matrix, beta) 
-    return trans_matrix
+# # Transmission matrix defined for SCENARIO 1. 
+# def trans_matrix1(gdf: gpd.GeoDataFrame, beta:float, p:float, column_name: str = 'ParishName', column_geometry: str = 'geometry'):
+#     unique_names = gdf[column_name].unique()
+#     len_unique_names = len(unique_names)
+#     trans_matrix = np.full((len_unique_names,len_unique_names),p, dtype=float)
+#     for i in range(len_unique_names):
+#         for j in range(i+1, len_unique_names): 
+#             polygon_i = gdf[gdf[column_name] == unique_names[i]][column_geometry].values[0]
+#             polygon_j = gdf[gdf[column_name] == unique_names[j]][column_geometry].values[0]
+#             # If polygons don't touch, set value in trans_matrix to 0
+#             if not polygon_i.touches(polygon_j):
+#                 trans_matrix[i,j] = 0
+#                 trans_matrix[j,i] = 0
+#     np.fill_diagonal(trans_matrix, beta) 
+#     return trans_matrix
 
-# Transmission matrix defined for SCENARIO 2 and SCENARIO 3. 
-def trans_matrix2(gdf: gpd.GeoDataFrame, beta, p:float, column_name: str = 'ParishName', column_geometry: str = 'geometry'):
-    unique_names = gdf[column_name].unique()
-    len_unique_names = len(unique_names)
-    trans_matrix = np.full((len_unique_names,len_unique_names),p, dtype=float)
-    for i in range(len_unique_names):
-        for j in range(i, len_unique_names): 
-            if i != j:
-                polygon_i = gdf[gdf[column_name] == unique_names[i]][column_geometry].values[0]
-                polygon_j = gdf[gdf[column_name] == unique_names[j]][column_geometry].values[0]
-                # If polygons don't touch, set value in trans_matrix to 0
-                if not polygon_i.touches(polygon_j):
-                    trans_matrix[i,j] = 0
-                    trans_matrix[j,i] = 0
-            else:
-                trans_matrix[i,j] = beta[i]
-    return trans_matrix
+# # Transmission matrix defined for SCENARIO 2 and SCENARIO 3. 
+# def trans_matrix2(gdf: gpd.GeoDataFrame, beta, p:float, column_name: str = 'ParishName', column_geometry: str = 'geometry'):
+#     unique_names = gdf[column_name].unique()
+#     len_unique_names = len(unique_names)
+#     trans_matrix = np.full((len_unique_names,len_unique_names),p, dtype=float)
+#     for i in range(len_unique_names):
+#         for j in range(i, len_unique_names): 
+#             if i != j:
+#                 polygon_i = gdf[gdf[column_name] == unique_names[i]][column_geometry].values[0]
+#                 polygon_j = gdf[gdf[column_name] == unique_names[j]][column_geometry].values[0]
+#                 # If polygons don't touch, set value in trans_matrix to 0
+#                 if not polygon_i.touches(polygon_j):
+#                     trans_matrix[i,j] = 0
+#                     trans_matrix[j,i] = 0
+#             else:
+#                 trans_matrix[i,j] = beta[i]
+#     return trans_matrix
 
 def getValueAt(array, n, i, j):
     if i == j: return 0
