@@ -137,7 +137,7 @@ def distance_btw_centroids(gpd: gpd.GeoDataFrame):
 # Computing the distance between the centroids and shared borders
 
 def compute_info(gdp: gpd.GeoDataFrame,
-                 column_name: str,
+                 column_name: str = 'ParishName',
                  column_geometry: str = 'geometry',
                  column_centroid: str = 'centroid',
                  units: int = 1) -> dict:
@@ -176,6 +176,11 @@ def compute_info(gdp: gpd.GeoDataFrame,
 # Assigning colors (red -> Plague and blue -> NoPlague)
 def colorByColumn(gpd: gpd.GeoDataFrame, heading: str = 'BeginPlaguePeriod'):
     gpd['color'] = gpd[heading].map(lambda x: 'blue' if pd.isna(x) else 'red')
+    pass
+
+# Assigning colors (red -> Plague and blue -> NoPlague)
+def classByPlague(gpd: gpd.GeoDataFrame, heading: str = 'BeginPlaguePeriod'):
+    gpd['plague'] = gpd[heading].map(lambda x: 0 if pd.isna(x) else 1)
     pass
 
 def begin_days_between(d1, d2):
@@ -439,7 +444,7 @@ def trans_matrix4(gdf: gpd.GeoDataFrame, beta:np.array, p:np.array, n, column_na
 #     print()
 
 
-def total_transmission_matrix(gdf: gpd.GeoDataFrame, beta:np.array, p_coeff:np.array, n , column_geometry: str = 'geometry', 
+def total_transmission_matrix(gdf: gpd.GeoDataFrame, beta:np.array, p_coeff: np.array, n, column_geometry: str = 'geometry', 
                            column_centroid: str = 'centroid', column_pop: str = 'BEF1699', 
                            column_name: str = 'ParishName'):
 
@@ -471,7 +476,7 @@ def total_transmission_matrix(gdf: gpd.GeoDataFrame, beta:np.array, p_coeff:np.a
                 gravitational[i,j] = 0
                 gravitational[j,i] = 0
 
-    return beta_matrix + gravitational  
+    return  beta_matrix + gravitational  
 
 def transmission_matrix2_p(gdf: gpd.GeoDataFrame, p_coeff:np.array, column_geometry: str = 'geometry', 
                            column_centroid: str = 'centroid', column_pop: str = 'BEF1699', 
