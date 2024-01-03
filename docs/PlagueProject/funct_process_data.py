@@ -25,13 +25,10 @@ import folium
 from mapclassify import classify
 import math
 from datetime import datetime, timedelta
-import math
 import networkx as nx # for network analysis, graphs
 import plotly.express as px
-import numba as nb
-#from numbalsoda import solve_ivp, lsoda_sig, lsoda
 from skopt import gp_minimize # for Bayesian optimization
-from pandas.tseries.offsets import DateOffset
+from pandas.tseries.offsets import DateOffset, MonthEnd
 
 
 # Function to get all parishes from a specific region
@@ -283,11 +280,11 @@ def gaussian(x, media, std):
 def seasonal_transmission_rate(t, bump_center, bump_width, bump_height):
     return bump_height * gaussian(t % 365, bump_center, bump_width) + bump_height * gaussian(t % 365 - 365, bump_center, bump_width) + bump_height * gaussian(t % 365 + 365, bump_center, bump_width)
 
-# def transmission_matrix_beta(gdf: gpd.GeoDataFrame, beta:np.array, column_name: str = 'ParishName'):
-#     same_names = gdf[column_name].apply(lambda x: gdf[column_name] == x).values
-#     beta_matrix = np.zeros_like(same_names, dtype=float)
-#     np.fill_diagonal(beta_matrix, beta) 
-#     return beta_matrix
+def transmission_matrix_beta(gdf: gpd.GeoDataFrame, beta:np.array, column_name: str = 'ParishName'):
+    same_names = gdf[column_name].apply(lambda x: gdf[column_name] == x).values
+    beta_matrix = np.zeros_like(same_names, dtype=float)
+    np.fill_diagonal(beta_matrix, beta) 
+    return beta_matrix
 
 # def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', column_centroid: str = 'centroid', column_pop: str = 'BEF1699', column_name: str = 'ParishName'):
     
@@ -694,7 +691,9 @@ def transmission_matrix2_p(gdf: gpd.GeoDataFrame, p_coeff:np.array, column_geome
 #     totalError = np.sum(errors)
 #     return totalError
 
-def count_infected_by_month(df, date, n, start_date: str = 'BeginPlaguePeriod', end_date: str = 'EndPlaguePeriod'):
+def count_infected_by_month(df, date, n, column_name: str = 'ParishName'
+                            , start_date: str = 'BeginPlaguePeriod'
+                            , end_date: str = 'EndPlaguePeriod'):
     # Create a copy of the dataframe
     df_copy = df.copy()
 
@@ -714,40 +713,57 @@ def count_infected_by_month(df, date, n, start_date: str = 'BeginPlaguePeriod', 
     # Define the range of dates
     dates = pd.date_range(start=date, end=df_copy[end_date].max(), freq='MS')
 
+    # Create a unique identifier combining Parish and date ranges
+    df_copy['UniqueID'] = df_copy[column_name].astype(str) + '_' + df_copy[start_date].astype(str) + '_' + df_copy[end_date].astype(str)
+
     # Create a dataframe to store the results
-    results = pd.DataFrame({'date': dates, 'NumberInfectedParishes': 0, 'CumulativeInfectedParishes': 0})
+    results = pd.DataFrame({'date': dates
+                            , 'DaysFromInitialDate': (dates - df_copy[start_date].min()).days
+                            , 'NumberInfectedParishes': 0
+                            , 'CumInfectParishes': 0
+                            , 'EndOfMonth': (dates + MonthEnd(1))
+                            })
+
+    # Initialize an empty list to store the sets of infected parishes
+    infected_parishes = []
 
     # Iterate over the dates
     for date in dates:
         # Count nodes where infection start date is before or on the given date 
         # and either there is no end date or the end date is after the given date
         infected_nodes = df_copy[(df_copy[start_date] <= date) & (df_copy[end_date] >= date)]
+        
         # Store the results
-        results.loc[results['date'] == date, 'NumberInfectedParishes'] = len(infected_nodes)
+        results.loc[results['date'] == date, 'NumberInfectedParishes'] = infected_nodes['UniqueID'].nunique()  # Count only unique instances
 
-    # Calculate the cumulative sum
-    results['CumulativeInfectedParishes'] = results['NumberInfectedParishes'].cumsum()
+        # Add the set of infected parishes to the list
+        infected_parishes.append(set(infected_nodes[column_name]))
 
+    # Add a new column to count the days from the initial date to the end of the month
+    results['DaysToEndOfMonth'] = (results['EndOfMonth'] - df_copy[start_date].min()).dt.days
+
+    # Add a new column with the sets of infected parishes
+    results['InfectedParishes'] = infected_parishes  
+
+    # Calculate the cumulative number of infected parishes by month using the sets
+    CumInfectParishes = np.zeros(len(dates), dtype=int)
+    
+    if len(infected_parishes[0]) > 0:
+        CumInfectParishes[0] = len(infected_parishes[0])
+        # Defining a variable to store the union of the infected parishes
+        union_infected_parishes = set(infected_parishes[0])  
+    else:
+        union_infected_parishes = set()
+
+    for i in range(1, len(infected_parishes)): 
+        if len(infected_parishes[i]) > 0: 
+            new_infections = infected_parishes[i].difference(union_infected_parishes)
+            CumInfectParishes[i] = CumInfectParishes[i-1] + len(new_infections)
+            # Update the union of infected parishes
+            union_infected_parishes.update(new_infections)
+        else:
+            CumInfectParishes[i] = CumInfectParishes[i-1]
+
+    # Add a new column with the cumulative number of infected parishes
+    results['CumInfectParishes'] = CumInfectParishes    
     return results
-
-# Plot the number of infected parishes per month 
-def plot_infected_by_month(df, date, n, start_date: str = 'BeginPlaguePeriod', end_date: str = 'EndPlaguePeriod'):
-    results = count_infected_by_month(df, date, n, start_date, end_date)
-    plt.plot(results['date'], results['NumberInfectedParishes'],
-              label='Number of infected parishes', color='blue')
-    plt.xlabel('Month')
-    plt.xticks( rotation=45)
-    plt.ylabel('Number of infected parishes')
-    plt.title('South Scania')
-    plt.show()
-
-# Plot the cumulative number of parishes per month 
-def plot_cum_infected_by_month(df, date, n, start_date: str = 'BeginPlaguePeriod', end_date: str = 'EndPlaguePeriod'):
-    results = count_infected_by_month(df, date, n, start_date, end_date)
-    plt.plot(results['date'], results['CumulativeInfectedParishes'], 
-             label='Cumulative number of infected parishes', color='orange')
-    plt.xlabel('Month')
-    plt.xticks( rotation=45)
-    plt.ylabel('Cumulative number of infected parishes')
-    plt.title('South Scania')
-    plt.show()
