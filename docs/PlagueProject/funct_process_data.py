@@ -280,12 +280,6 @@ def gaussian(x, media, std):
 def seasonal_transmission_rate(t, bump_center, bump_width, bump_height):
     return bump_height * gaussian(t % 365, bump_center, bump_width) + bump_height * gaussian(t % 365 - 365, bump_center, bump_width) + bump_height * gaussian(t % 365 + 365, bump_center, bump_width)
 
-def transmission_matrix_beta(gdf: gpd.GeoDataFrame, beta:np.array, column_name: str = 'ParishName'):
-    same_names = gdf[column_name].apply(lambda x: gdf[column_name] == x).values
-    beta_matrix = np.zeros_like(same_names, dtype=float)
-    np.fill_diagonal(beta_matrix, beta) 
-    return beta_matrix
-
 # def transmission_matrix_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', column_centroid: str = 'centroid', column_pop: str = 'BEF1699', column_name: str = 'ParishName'):
     
 #     # Calculate distances between all centroids in meters
@@ -337,12 +331,13 @@ def transmission_matrix_beta(gdf: gpd.GeoDataFrame, beta:np.array, column_name: 
 #     np.fill_diagonal(p_weight, 0)
 #     return p_weight
 
-# def transmission_matrix_beta(gdf: gpd.GeoDataFrame, beta:np.array, column_name: str = 'ParishName'):
-#     unique_names = gdf[column_name].unique()
-#     len_unique_names = len(unique_names)
-#     beta_matrix = np.zeros((len_unique_names,len_unique_names), dtype=float)
-#     np.fill_diagonal(beta_matrix, beta) 
-#     return beta_matrix
+# Definition considering unique names
+def transmission_matrix_beta(gdf: gpd.GeoDataFrame, beta:np.array, column_name: str = 'ParishName'):
+    unique_names = gdf[column_name].unique()
+    len_unique_names = len(unique_names)
+    beta_matrix = np.zeros((len_unique_names,len_unique_names), dtype=float)
+    np.fill_diagonal(beta_matrix, beta) 
+    return beta_matrix
 
 # # Transmission matrix defined for SCENARIO 1. 
 # def trans_matrix1(gdf: gpd.GeoDataFrame, beta:float, p:float, column_name: str = 'ParishName', column_geometry: str = 'geometry'):
@@ -765,5 +760,61 @@ def count_infected_by_month(df, date, n, column_name: str = 'ParishName'
             CumInfectParishes[i] = CumInfectParishes[i-1]
 
     # Add a new column with the cumulative number of infected parishes
-    results['CumInfectParishes'] = CumInfectParishes    
+    results['CumInfectParishes'] = CumInfectParishes          
     return results
+
+# Defining a function to count the number of victims per month
+def count_victims_by_month(gdf: gpd.GeoDataFrame 
+                           , column_name: str = 'ParishName'
+                           , begin_date: str = 'BeginPlaguePeriod'
+                           , victims_column: str = 'VictimsNumber'
+                           , end_date: str = 'EndPlaguePeriod'):
+    # Create a copy of the dataframe
+    gdf_copy = gdf.copy()
+
+    # Filter the dataframe to get only the infected parishes
+    gdf_copy = gdf_copy[gdf_copy[begin_date].notnull()]
+
+    # Add a new column with the converted date to iterate over
+    gdf_copy['new_format'] = pd.to_datetime(gdf_copy[end_date], format='%b %Y', errors='coerce') + pd.offsets.MonthEnd(1)
+
+    # sort df by date
+    gdf_copy = gdf_copy.sort_values(by=['new_format'])
+
+    # Add a column with the number of days corresponding to the end of the month
+    gdf_copy['day_month'] = gdf_copy['new_format'].dt.daysinmonth
+      
+    # Fix the type of the victims number column to integer 
+    gdf_copy[victims_column] = pd.to_numeric(gdf_copy[victims_column], errors='coerce')
+    # Now replace np.nan with a default value (like 0) if you want
+    gdf_copy[victims_column].fillna(0, inplace=True)
+    # Finally, convert the column to integer
+    gdf_copy[victims_column] = gdf_copy[victims_column].astype(int)
+   
+    months = gdf_copy['new_format'].unique()
+    
+    # Create a dataframe to store the results
+    results = pd.DataFrame({ 'EndMonth': months
+                            , 'CumDays': 0
+                            , 'NumberDeaths': 0
+                            , 'CumDeaths': 0
+                            , 'Parishes': ""
+                            })
+    # Iterate over the dates
+    total_deaths = 0
+    total_days = 0
+    
+    for i, date in enumerate(months):
+        if pd.notna(date):
+            # fill the dataframe "results" so in the correspondant row the
+            # number of deaths is added to the column number deaths
+            numberOfDeaths = gdf_copy.loc[gdf_copy['new_format'] == date, victims_column].sum()
+            parishes = ','.join(gdf_copy.loc[gdf_copy['new_format'] == date, column_name])
+            results.loc[results['EndMonth'] == date, 'Parishes'] = parishes
+            results.loc[results['EndMonth'] == date, 'NumberDeaths'] = numberOfDeaths
+            total_deaths += numberOfDeaths
+            results.loc[results['EndMonth'] == date, 'CumDeaths'] = total_deaths
+            # fill the df with the respective cumulative number of days per date
+            total_days += gdf_copy.loc[gdf_copy['new_format'] == date, 'day_month'].values[0]
+            results.loc[results['EndMonth'] == date, 'CumDays'] = total_days
+    return results 
