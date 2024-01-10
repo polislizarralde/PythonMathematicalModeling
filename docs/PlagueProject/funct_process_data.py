@@ -768,7 +768,8 @@ def count_victims_by_month(gdf: gpd.GeoDataFrame
                            , column_name: str = 'ParishName'
                            , begin_date: str = 'BeginPlaguePeriod'
                            , victims_column: str = 'VictimsNumber'
-                           , end_date: str = 'EndPlaguePeriod'):
+                           , end_date: str = 'EndPlaguePeriod'
+                           , pop_size: str = 'BEF1699'):
     # Create a copy of the dataframe
     gdf_copy = gdf.copy()
 
@@ -776,13 +777,17 @@ def count_victims_by_month(gdf: gpd.GeoDataFrame
     gdf_copy = gdf_copy[gdf_copy[begin_date].notnull()]
 
     # Add a new column with the converted date to iterate over
-    gdf_copy['new_format'] = pd.to_datetime(gdf_copy[end_date], format='%b %Y', errors='coerce') + pd.offsets.MonthEnd(1)
+    gdf_copy['new_format_BeginPlaguePeriod'] = pd.to_datetime(gdf_copy[begin_date], format='%b %Y', errors='coerce')
+    gdf_copy['new_format_EndPlaguePeriod'] = pd.to_datetime(gdf_copy[end_date], format='%b %Y', errors='coerce') + pd.offsets.MonthEnd(1)
 
     # sort df by date
-    gdf_copy = gdf_copy.sort_values(by=['new_format'])
+    gdf_copy = add_Begin_End_days(sort_by_date(gdf_copy)
+                                         , 'new_format_BeginPlaguePeriod'
+                                         , 'new_format_EndPlaguePeriod'
+                                         )
 
     # Add a column with the number of days corresponding to the end of the month
-    gdf_copy['day_month'] = gdf_copy['new_format'].dt.daysinmonth
+    # gdf_copy['day_month'] = gdf_copy['new_format'].dt.daysinmonth
       
     # Fix the type of the victims number column to integer 
     gdf_copy[victims_column] = pd.to_numeric(gdf_copy[victims_column], errors='coerce')
@@ -790,31 +795,36 @@ def count_victims_by_month(gdf: gpd.GeoDataFrame
     gdf_copy[victims_column].fillna(0, inplace=True)
     # Finally, convert the column to integer
     gdf_copy[victims_column] = gdf_copy[victims_column].astype(int)
-   
-    months = gdf_copy['new_format'].unique()
+
+    # Get the gdf sorted by the end of the plague period
+    gdf_copy = gdf_copy.sort_values('new_format_EndPlaguePeriod')
+    
+    # Get the unique dates 
+    months = gdf_copy['new_format_EndPlaguePeriod'].unique()
     
     # Create a dataframe to store the results
     results = pd.DataFrame({ 'EndMonth': months
-                            , 'CumDays': 0
+                            , 'CumDays' : gdf_copy['EndDaysPlague'].unique()
                             , 'NumberDeaths': 0
                             , 'CumDeaths': 0
+                            , 'CumPop': 0
                             , 'Parishes': ""
                             })
     # Iterate over the dates
     total_deaths = 0
-    total_days = 0
-    
+        
     for i, date in enumerate(months):
         if pd.notna(date):
             # fill the dataframe "results" so in the correspondant row the
             # number of deaths is added to the column number deaths
-            numberOfDeaths = gdf_copy.loc[gdf_copy['new_format'] == date, victims_column].sum()
-            parishes = ','.join(gdf_copy.loc[gdf_copy['new_format'] == date, column_name])
+            numberOfDeaths = gdf_copy.loc[gdf_copy['new_format_EndPlaguePeriod'] == date, victims_column].sum()
+            parishes = ','.join(gdf_copy.loc[gdf_copy['new_format_EndPlaguePeriod'] <= date, column_name])
             results.loc[results['EndMonth'] == date, 'Parishes'] = parishes
             results.loc[results['EndMonth'] == date, 'NumberDeaths'] = numberOfDeaths
             total_deaths += numberOfDeaths
             results.loc[results['EndMonth'] == date, 'CumDeaths'] = total_deaths
-            # fill the df with the respective cumulative number of days per date
-            total_days += gdf_copy.loc[gdf_copy['new_format'] == date, 'day_month'].values[0]
-            results.loc[results['EndMonth'] == date, 'CumDays'] = total_days
-    return results 
+
+            results.loc[results['EndMonth'] == date, 'CumPop'] = gdf_copy.loc[gdf_copy['new_format_EndPlaguePeriod']
+                                                                               <= date, pop_size].sum()
+            
+    return results
