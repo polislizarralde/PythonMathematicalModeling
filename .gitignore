@@ -3,3 +3,4 @@ site/
 .cache/
 *.pyc
 *.ipynb_checkpoints
+.vscode/settings.json
