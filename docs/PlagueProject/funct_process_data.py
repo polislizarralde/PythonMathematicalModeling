@@ -506,36 +506,36 @@ def transmission_matrix2_p(gdf: gpd.GeoDataFrame, p_coeff:np.array, column_geome
 
     return p_matrix 
 
-# def transmission_matrix2_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', 
-#                            column_centroid: str = 'centroid', column_pop: str = 'BEF1699', 
-#                            column_name: str = 'ParishName'):
+def transmission_matrix2_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', 
+                           column_centroid: str = 'centroid', column_pop: str = 'BEF1699', 
+                           column_name: str = 'ParishName'):
 
-#     # Get unique parish names and create a mapping to indices
-#     unique_names = gdf[column_name].unique()
-#     name_to_index = {name: index for index, name in enumerate(unique_names)}
+    # Get unique parish names and create a mapping to indices
+    unique_names = gdf[column_name].unique()
+    name_to_index = {name: index for index, name in enumerate(unique_names)}
 
-#     # Calculate distances between all centroids in meters
-#     centroid_distances = np.zeros((len(unique_names), len(unique_names)))
-#     for name1, index1 in name_to_index.items():
-#         for name2, index2 in name_to_index.items():
-#             if name1 != name2:
-#                 centroid1 = gdf[gdf[column_name] == name1][column_centroid].values[0]
-#                 centroid2 = gdf[gdf[column_name] == name2][column_centroid].values[0]
-#                 centroid_distances[index1, index2] = centroid1.distance(centroid2)
-#     # Set diagonal elements to infinity to avoid division by zero later
-#     np.fill_diagonal(centroid_distances, np.inf)
+    # Calculate distances between all centroids in meters
+    centroid_distances = np.zeros((len(unique_names), len(unique_names)))
+    for name1, index1 in name_to_index.items():
+        for name2, index2 in name_to_index.items():
+            if name1 != name2:
+                centroid1 = gdf[gdf[column_name] == name1][column_centroid].values[0]
+                centroid2 = gdf[gdf[column_name] == name2][column_centroid].values[0]
+                centroid_distances[index1, index2] = centroid1.distance(centroid2)
+    # Set diagonal elements to infinity to avoid division by zero later
+    np.fill_diagonal(centroid_distances, np.inf)
 
-#     # Calculate population products for all pairs of polygons
-#     pop_products = np.zeros((len(unique_names), len(unique_names)))
-#     for name1, index1 in name_to_index.items():
-#         for name2, index2 in name_to_index.items():
-#             pop1 = gdf[gdf[column_name] == name1][column_pop].values[0]
-#             pop2 = gdf[gdf[column_name] == name2][column_pop].values[0]
-#             pop_products[index1, index2] = pop1 * pop2
+    # Calculate population products for all pairs of polygons
+    pop_products = np.zeros((len(unique_names), len(unique_names)))
+    for name1, index1 in name_to_index.items():
+        for name2, index2 in name_to_index.items():
+            pop1 = gdf[gdf[column_name] == name1][column_pop].values[0]
+            pop2 = gdf[gdf[column_name] == name2][column_pop].values[0]
+            pop_products[index1, index2] = pop1 * pop2
 
-#     # Calculate the transmission matrix
-#     p_weight = (pop_products / (centroid_distances**2))
-#     return p_weight
+    # Calculate the transmission matrix
+    p_weight = (pop_products / (centroid_distances**2))
+    return p_weight
 
 
 # def get_parish_data(parish_name, parish_folder):
