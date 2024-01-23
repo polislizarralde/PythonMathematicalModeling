@@ -13,23 +13,24 @@ from Levenshtein import distance as levenshtein_distance
 import pandas as pd
 import numpy as np
 import pylab as pl
-import random
+# import random
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from collections import defaultdict
-import json  # for pretty printing
+# import json  # for pretty printing
 import geopandas as gpd
 import os
 import re
-import folium
-from mapclassify import classify
+# import folium
+# from mapclassify import classify
 import math
 from datetime import datetime, timedelta
 import networkx as nx # for network analysis, graphs
 import plotly.express as px
-from skopt import gp_minimize # for Bayesian optimization
+# from skopt import gp_minimize # for Bayesian optimization
 from pandas.tseries.offsets import DateOffset, MonthEnd
 
+TEST = "HOLA"
 
 # Function to get all parishes from a specific region
 def parishesByregion(df: pd.DataFrame, region: str) -> pd.DataFrame:
