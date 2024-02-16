@@ -30,7 +30,10 @@ import plotly.express as px
 # from skopt import gp_minimize # for Bayesian optimization
 from pandas.tseries.offsets import DateOffset, MonthEnd
 
-TEST = "HOLA"
+import locale
+locale.setlocale(locale.LC_TIME, 'en_US.UTF-8')
+
+TEST = "change"
 
 # Function to get all parishes from a specific region
 def parishesByregion(df: pd.DataFrame, region: str) -> pd.DataFrame:
@@ -132,6 +135,9 @@ def distance_btw_centroids(gpd: gpd.GeoDataFrame):
     for i in range(len(gpd)):
         gpd.loc[i, 'distance'] = gpd.geometry.distance(gpd.centroid[i])
     return gpd
+
+def maxDays(gdf, column_EndDays: str = 'EndDaysPlague'):
+        return gdf[column_EndDays].max()  # Get the maximum value of a column
 
 # Computing the distance between the centroids and shared borders
 
@@ -340,6 +346,14 @@ def transmission_matrix_beta(gdf: gpd.GeoDataFrame, beta:np.array, column_name: 
     np.fill_diagonal(beta_matrix, beta) 
     return beta_matrix
 
+# Beta matrix considering repeated names
+def beta_matrix(gdf: gpd.GeoDataFrame, beta:np.array, column_name: str = 'ParishName'):
+    unique_names = gdf[column_name]
+    len_unique_names = len(unique_names)
+    beta_matrix = np.zeros((len_unique_names,len_unique_names), dtype=float)
+    np.fill_diagonal(beta_matrix, beta) 
+    return beta_matrix
+
 # # Transmission matrix defined for SCENARIO 1. 
 # def trans_matrix1(gdf: gpd.GeoDataFrame, beta:float, p:float, column_name: str = 'ParishName', column_geometry: str = 'geometry'):
 #     unique_names = gdf[column_name].unique()
@@ -472,19 +486,18 @@ def total_transmission_matrix(gdf: gpd.GeoDataFrame, beta:np.array, p_coeff: np.
 
     return  beta_matrix + gravitational  
 
-def transmission_matrix2_p(gdf: gpd.GeoDataFrame, p_coeff:np.array, column_geometry: str = 'geometry', 
-                           column_centroid: str = 'centroid', column_pop: str = 'BEF1699', 
+# Define the transmission matrix for the SEIRD model p equal for all patches
+def transmission_matrix_p(gdf: gpd.GeoDataFrame, p_coeff: float, 
+                           column_centroid: str = 'centroid',
+                           column_pop: str = 'BEF1699', 
                            column_name: str = 'ParishName'):
+    
+    # Reset the index
+    gdf.reset_index(drop=True, inplace=True)
 
-    # Get unique parish names 
-    unique_names = gdf[column_name].unique()
+    # Get parish names including duplicates
+    unique_names = gdf[column_name]
     len_unique_names = len(unique_names)
-
-    # Initialize the p_coeff matrix
-    p_coeff = np.full((len_unique_names, len_unique_names), p_coeff)
-
-    # Initialize the p_matrix
-    p_matrix = np.full((len_unique_names, len_unique_names), 0.0)
 
     # Initialize the gravitational matrix
     gravitational = np.full((len_unique_names, len_unique_names), 0.0)
@@ -507,9 +520,10 @@ def transmission_matrix2_p(gdf: gpd.GeoDataFrame, p_coeff:np.array, column_geome
 
     return p_matrix 
 
-def transmission_matrix2_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geometry', 
-                           column_centroid: str = 'centroid', column_pop: str = 'BEF1699', 
-                           column_name: str = 'ParishName'):
+def gravitational_coeff(gdf: gpd.GeoDataFrame
+                        , column_centroid: str = 'centroid'
+                        , column_pop: str = 'BEF1699'
+                        , column_name: str = 'ParishName'):
 
     # Get unique parish names and create a mapping to indices
     unique_names = gdf[column_name].unique()
@@ -537,6 +551,41 @@ def transmission_matrix2_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geomet
     # Calculate the transmission matrix
     p_weight = (pop_products / (centroid_distances**2))
     return p_weight
+
+# Define gravitational matrix without excluding repeated names
+def gravitational_matrix(gdf: gpd.GeoDataFrame
+                        , column_centroid: str = 'centroid'
+                        , column_pop: str = 'BEF1699'
+                        , column_name: str = 'ParishName'):
+
+    # Calculate distances between all centroids in meters
+    centroid_distances = np.zeros((len(gdf), len(gdf)))
+    for index1, row1 in gdf.iterrows():
+        for index2, row2 in gdf.iterrows():
+            if index1 != index2:
+                centroid1 = row1[column_centroid]
+                centroid2 = row2[column_centroid]
+                centroid_distances[index1, index2] = centroid1.distance(centroid2)
+
+    # Calculate population products for all pairs of polygons
+    pop_products = np.zeros((len(gdf), len(gdf)))
+    for index1, row1 in gdf.iterrows():
+        for index2, row2 in gdf.iterrows():
+            pop1 = row1[column_pop]
+            pop2 = row2[column_pop]
+            pop_products[index1, index2] = pop1 * pop2
+
+    # Calculate the transmission matrix
+    p_weight = np.zeros((len(gdf), len(gdf)))
+    for i in range(len(gdf)):
+        for j in range(len(gdf)):
+            if centroid_distances[i, j] == 0:
+                p_weight[i, j] = 0
+            else:
+                p_weight[i, j] = pop_products[i, j] / (centroid_distances[i, j]**2)
+    return p_weight
+                         
+                        
 
 
 # def get_parish_data(parish_name, parish_folder):
@@ -687,7 +736,7 @@ def transmission_matrix2_p(gdf: gpd.GeoDataFrame, column_geometry: str = 'geomet
 #     totalError = np.sum(errors)
 #     return totalError
 
-def count_infected_by_month(df, date, n, column_name: str = 'ParishName'
+def count_infected_parishes_by_month(df, date, n, column_name: str = 'ParishName'
                             , start_date: str = 'BeginPlaguePeriod'
                             , end_date: str = 'EndPlaguePeriod'):
     # Create a copy of the dataframe
@@ -765,7 +814,7 @@ def count_infected_by_month(df, date, n, column_name: str = 'ParishName'
     return results
 
 # Defining a function to count the number of victims per month
-def count_victims_by_month(gdf: gpd.GeoDataFrame 
+def count_victims_by_month(gdf: pd.DataFrame
                            , column_name: str = 'ParishName'
                            , begin_date: str = 'BeginPlaguePeriod'
                            , victims_column: str = 'VictimsNumber'
@@ -786,10 +835,7 @@ def count_victims_by_month(gdf: gpd.GeoDataFrame
                                          , 'new_format_BeginPlaguePeriod'
                                          , 'new_format_EndPlaguePeriod'
                                          )
-
-    # Add a column with the number of days corresponding to the end of the month
-    # gdf_copy['day_month'] = gdf_copy['new_format'].dt.daysinmonth
-      
+  
     # Fix the type of the victims number column to integer 
     gdf_copy[victims_column] = pd.to_numeric(gdf_copy[victims_column], errors='coerce')
     # Now replace np.nan with a default value (like 0) if you want
@@ -829,3 +875,213 @@ def count_victims_by_month(gdf: gpd.GeoDataFrame
                                                                                <= date, pop_size].sum()
             
     return results
+
+def connection_matrix(cluster, column_name='ParishName'):
+    # consider only the parishes with different names
+    cluster = cluster.drop_duplicates(subset=column_name)
+    matrix = np.zeros((len(cluster), len(cluster)))
+    for i in range(len(cluster)):
+        for j in range(len(cluster)):
+            if i != j:
+                if cluster.iloc[i].geometry.touches(cluster.iloc[j].geometry):
+                    matrix[i, j] = 1
+            else:
+                matrix[i, j] = 0
+
+    # Divide each row by the total number of non-zero elements in the same row
+    for i in range(len(matrix)):
+        non_zero_count = np.count_nonzero(matrix[i])
+        if non_zero_count > 0:  # Avoid division by zero
+            matrix[i] /= non_zero_count
+
+    # Convert the matrix to a DataFrame and add column labels
+    df = pd.DataFrame(matrix, columns=cluster[column_name].values)
+    return df
+
+# Function to calculate the error in the cumulative number of infected parishes per month between the model and the data
+def objectiveFunction_2 (model_sol: dict
+                         , gdf: gpd.GeoDataFrame
+                         , column_name: str = 'ParishName'
+                         , n: int = 0
+                         ):
+    #Group the dataframe by parish name without repetitions
+    grouped_by_parish = gdf.groupby(column_name)
+    # Defining the initial date of the dataframe to start counting the number of infected parishes per month
+    date = gdf.loc[0, 'BeginPlaguePeriod']
+    # Getting the number of infected parishes per month from the data
+    cum_infected_parishes_by_month = count_infected_parishes_by_month(gdf,date,n)
+    # Make a list of the days to iterate over we took initial date because we are using infected humans
+    days = cum_infected_parishes_by_month['DaysToEndOfMonth'].values
+    # Initializing the number of infected parishes per month for the model's output
+    model_infected_parishes = np.zeros(len(cum_infected_parishes_by_month))
+    # Initializing the error between the model's output and the data
+    error = np.zeros(len(cum_infected_parishes_by_month))
+
+    # Initializing a matrix where the rows represents the number of parishes and the columns the number of days
+    matrix_death_parishes_month = np.zeros((len(grouped_by_parish), len(days)))
+    matrix_infected_parishes_month = np.zeros((len(grouped_by_parish), len(days)))
+
+    for k in range(2):
+        for i, day in enumerate(days):
+            if day < len(model_sol['D'][k]):
+                if model_sol['D'][k][day] >= 1.0 :
+                    matrix_death_parishes_month[k, i] = model_sol['D'][k][day]
+          
+    for i in range(matrix_death_parishes_month.shape[0]):
+        for j in range(matrix_death_parishes_month.shape[1]):
+            if j == 0: # For the first day, there's no previous day to compare
+                matrix_infected_parishes_month[i,j]= 0 if matrix_death_parishes_month[i,j] < 1.0 else 1
+            else:
+                diff = matrix_death_parishes_month[i,j] - matrix_death_parishes_month[i,j-1]
+                if diff >= 1.0:
+                    matrix_infected_parishes_month[i,j] = 1
+                else:
+                    matrix_infected_parishes_month[i,j] = 0
+    
+    # Computing the number of infected parishes per month from the matrix
+    for j in range(matrix_infected_parishes_month.shape[1]):
+        # Sum up all the values in the column and store it 
+        model_infected_parishes[j] = np.sum(matrix_infected_parishes_month[:,j])
+        error[j] = (model_infected_parishes[j] 
+                           - cum_infected_parishes_by_month['NumberInfectedParishes'][j])**2
+    
+    max_error = np.max(error)
+    # Computing the error between the model's output and the data
+    total_error = (np.sum(error))/(max_error * len(cum_infected_parishes_by_month))
+          
+    return (total_error) 
+
+# Function to calculate the square error between the cumulative number of deaths per month and the cumulative number of deaths in the data
+def objectiveFunction_3 (model_dict, gdf: gpd.GeoDataFrame 
+                         , column_name: str = 'ParishName'):
+
+    #Group the dataframe by parish name without repetitions
+    grouped_by_parish = gdf.groupby(column_name)
+    
+    # Getting the number of deaths per month from the data
+    cum_deaths_by_month = count_victims_by_month(gdf)
+
+    # Initializing the cum. number of deaths per month for the model's output
+    model_deaths_month = np.zeros(len(cum_deaths_by_month))
+    model_cum_deaths_month = np.zeros(len(cum_deaths_by_month))
+
+    # Initializing the error between the model's output and the data
+    error = np.zeros(len(cum_deaths_by_month))
+    
+    # Computing the number of cum. deaths per month from the model's output
+    for i in range(len(cum_deaths_by_month)):
+        # Add a condition to avoid when the day is NaT
+        if pd.notnull(cum_deaths_by_month['EndMonth'][i]):
+            day = cum_deaths_by_month['CumDays'][i]
+            data = cum_deaths_by_month['CumDeaths'][i]
+            
+        for k in range(len(grouped_by_parish)):
+            model_deaths_month[i] += model_dict['D'][k][day]
+        
+        model_cum_deaths_month[i] = model_deaths_month[i]   
+
+        if i > 0:
+            model_cum_deaths_month[i] += model_cum_deaths_month[i-1] 
+        
+        error[i] = (model_deaths_month[i] - data)**2
+        
+    max_error = np.max(error)    
+    # Computing the error between the model's output and the data
+    total_error = (np.sum(error))/(len(error)* max_error)
+          
+    return (total_error)
+
+# Function to calculate the error in the number of infected parishes per month between the model and the data
+def plot_infected_parishes (model_solution: dict
+                            , gdf: gpd.GeoDataFrame 
+                            , column_name: str = 'ParishName'
+                            , n: int = 0
+                            ):
+    #Group the dataframe by parish name without repetitions
+    grouped_by_parish = gdf.groupby(column_name)
+    # Defining the initial date of the dataframe to start counting the number of infected parishes per month
+    date = gdf.loc[0, 'BeginPlaguePeriod']
+    # Getting the number of infected parishes per month from the data
+    cum_infected_parishes_by_month = count_infected_parishes_by_month(gdf,date,n)
+    # Make a list of the days to iterate over we took initial date because we are using infected humans
+    days = cum_infected_parishes_by_month['DaysToEndOfMonth'].values
+    # Initializing the number of infected parishes per month for the model's output
+    model_infected_parishes = np.zeros(len(days))
+    # Initializing the error between the model's output and the data
+    error = np.zeros(len(days))
+
+    # Initializing a matrix where the rows represents the number of parishes and the columns the number of days
+    matrix_death_parishes_month = np.zeros((len(grouped_by_parish), len(days)))
+    matrix_infected_parishes_month = np.zeros((len(grouped_by_parish), len(days)))
+
+    for k in range(len(grouped_by_parish)):
+        for i, day in enumerate(days):
+            if day < len(model_solution['D'][k]):
+                if model_solution['D'][k][day] >= 1.0 :
+                    matrix_death_parishes_month[k, i] = model_solution['D'][k][day]
+     
+    for i in range(matrix_death_parishes_month.shape[0]):
+        for j in range(matrix_death_parishes_month.shape[1]):
+            if j == 0: # For the first day, there's no previous day to compare
+                matrix_infected_parishes_month[i,j]= 0 if matrix_death_parishes_month[i,j] < 1.0 else 1
+            else:
+                diff = matrix_death_parishes_month[i,j] - matrix_death_parishes_month[i,j-1]
+                if diff >= 1.0:
+                    matrix_infected_parishes_month[i,j] = 1
+                else:
+                    matrix_infected_parishes_month[i,j] = 0
+    
+    # Computing the number of infected parishes per month from the matrix
+    for j in range(matrix_infected_parishes_month.shape[1]):
+        # Sum up all the values in the column and store it 
+        model_infected_parishes[j] = np.sum(matrix_infected_parishes_month[:,j])
+    
+    plt.plot(days,model_infected_parishes, color = 'blue') 
+    plt.plot(cum_infected_parishes_by_month['DaysToEndOfMonth'], cum_infected_parishes_by_month['NumberInfectedParishes'],
+              label='Number of infected parishes', color='orange')
+    plt.xlabel('Month')
+    plt.xticks( rotation=45)
+    plt.ylabel('Number of infected parishes')
+    plt.title('South Scania')
+    plt.show()         
+    return (days, model_infected_parishes) 
+
+# Function to calculate the square error between the cumulative number of deaths per month and the cumulative number of deaths in the data
+def plot_cum_deaths (model_solution: dict
+                            , gdf: gpd.GeoDataFrame 
+                            , column_name: str = 'ParishName'
+                            ):
+        #Group the dataframe by parish name without repetitions
+    grouped_by_parish = gdf.groupby(column_name)
+    
+    # Getting the number of deaths per month from the data
+    cum_deaths_by_month = count_victims_by_month(gdf)
+
+    # Initializing the cum. number of deaths per month for the model's output
+    model_deaths_month = np.zeros(len(cum_deaths_by_month))
+    model_cum_deaths_month = np.zeros(len(cum_deaths_by_month))
+   
+    # Computing the number of cum. deaths per month from the model's output
+    for i in range(len(cum_deaths_by_month)):
+        # Add a condition to avoid when the day is NaT
+        if pd.notnull(cum_deaths_by_month['EndMonth'][i]):
+            day = cum_deaths_by_month['CumDays'][i]
+            data = cum_deaths_by_month['CumDeaths'][i]
+            
+        for k in range(len(grouped_by_parish)):
+            model_deaths_month[i] += model_solution['D'][k][day]
+        
+        model_cum_deaths_month[i] = model_deaths_month[i]   
+
+        if i > 0:
+            model_cum_deaths_month[i] += model_cum_deaths_month[i-1] 
+    
+    plt.plot(days,model_infected_parishes, color = 'blue') 
+    plt.plot(cum_infected_parishes_by_month['DaysToEndOfMonth'], cum_infected_parishes_by_month['NumberInfectedParishes'],
+              label='Number of infected parishes', color='orange')
+    plt.xlabel('Month')
+    plt.xticks( rotation=45)
+    plt.ylabel('Number of infected parishes')
+    plt.title('South Scania')
+    plt.show()         
+    return (days, model_infected_parishes) 
