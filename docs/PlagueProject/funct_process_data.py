@@ -961,6 +961,9 @@ def objectiveFunction_3 (model_dict, gdf: gpd.GeoDataFrame
     # Getting the number of deaths per month from the data
     cum_deaths_by_month = count_victims_by_month(gdf)
 
+    # Remove rows where 'EndMonth' is null
+    cum_deaths_by_month = cum_deaths_by_month.dropna(subset=['EndMonth'])
+
     # Initializing the cum. number of deaths per month for the model's output
     model_deaths_month = np.zeros(len(cum_deaths_by_month))
     model_cum_deaths_month = np.zeros(len(cum_deaths_by_month))
@@ -1046,42 +1049,49 @@ def plot_infected_parishes (model_solution: dict
     plt.show()         
     return (days, model_infected_parishes) 
 
-# Function to calculate the square error between the cumulative number of deaths per month and the cumulative number of deaths in the data
-def plot_cum_deaths (model_solution: dict
-                            , gdf: gpd.GeoDataFrame 
+# Function to calculate the error in the cumulative number of infected parishes per month between the model and the data
+
+def plot_cum_deaths_model(model_solution
+                            , gdf: gpd.GeoDataFrame
                             , column_name: str = 'ParishName'
                             ):
-        #Group the dataframe by parish name without repetitions
+      
+    #Group the dataframe by parish name without repetitions
     grouped_by_parish = gdf.groupby(column_name)
-    
+
     # Getting the number of deaths per month from the data
     cum_deaths_by_month = count_victims_by_month(gdf)
+
+    # Remove rows where 'EndMonth' is null
+    cum_deaths_by_month = cum_deaths_by_month.dropna(subset=['EndMonth'])
+
+    # Now, you can directly get the 'CumDays' and 'CumDeaths' without looping and checking for nulls
+    days = cum_deaths_by_month['CumDays'].values
+    cum_deaths = cum_deaths_by_month['CumDeaths'].values
 
     # Initializing the cum. number of deaths per month for the model's output
     model_deaths_month = np.zeros(len(cum_deaths_by_month))
     model_cum_deaths_month = np.zeros(len(cum_deaths_by_month))
-   
+
+        
     # Computing the number of cum. deaths per month from the model's output
     for i in range(len(cum_deaths_by_month)):
-        # Add a condition to avoid when the day is NaT
-        if pd.notnull(cum_deaths_by_month['EndMonth'][i]):
-            day = cum_deaths_by_month['CumDays'][i]
-            data = cum_deaths_by_month['CumDeaths'][i]
-            
+        day = cum_deaths_by_month['CumDays'][i]
+                   
         for k in range(len(grouped_by_parish)):
             model_deaths_month[i] += model_solution['D'][k][day]
-        
+                
         model_cum_deaths_month[i] = model_deaths_month[i]   
 
         if i > 0:
             model_cum_deaths_month[i] += model_cum_deaths_month[i-1] 
-    
-    plt.plot(days,model_infected_parishes, color = 'blue') 
-    plt.plot(cum_infected_parishes_by_month['DaysToEndOfMonth'], cum_infected_parishes_by_month['NumberInfectedParishes'],
-              label='Number of infected parishes', color='orange')
+       
+           
+    plt.plot(days, model_cum_deaths_month, color='blue') 
+    plt.plot(days, cum_deaths, label='Number of infected parishes', color='orange')
     plt.xlabel('Month')
     plt.xticks( rotation=45)
-    plt.ylabel('Number of infected parishes')
+    plt.ylabel('Cumulative Deaths')
     plt.title('South Scania')
     plt.show()         
-    return (days, model_infected_parishes) 
+    return (model_cum_deaths_month, days, cum_deaths) 
