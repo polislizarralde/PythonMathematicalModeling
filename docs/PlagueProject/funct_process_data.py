@@ -1010,9 +1010,6 @@ def plot_infected_parishes (model_solution: dict
     days = cum_infected_parishes_by_month['DaysToEndOfMonth'].values
     # Initializing the number of infected parishes per month for the model's output
     model_infected_parishes = np.zeros(len(days))
-    # Initializing the error between the model's output and the data
-    error = np.zeros(len(days))
-
     # Initializing a matrix where the rows represents the number of parishes and the columns the number of days
     matrix_death_parishes_month = np.zeros((len(grouped_by_parish), len(days)))
     matrix_infected_parishes_month = np.zeros((len(grouped_by_parish), len(days)))
@@ -1047,7 +1044,7 @@ def plot_infected_parishes (model_solution: dict
     plt.ylabel('Number of infected parishes')
     plt.title('South Scania')
     plt.show()         
-    return (days, model_infected_parishes) 
+    return (model_infected_parishes) 
 
 # Function to calculate the error in the cumulative number of infected parishes per month between the model and the data
 
@@ -1071,8 +1068,7 @@ def plot_cum_deaths_model(model_solution
 
     # Initializing the cum. number of deaths per month for the model's output
     model_deaths_month = np.zeros(len(cum_deaths_by_month))
-    model_cum_deaths_month = np.zeros(len(cum_deaths_by_month))
-
+    # model_cum_deaths_month = np.zeros(len(cum_deaths_by_month))
         
     # Computing the number of cum. deaths per month from the model's output
     for i in range(len(cum_deaths_by_month)):
@@ -1081,17 +1077,17 @@ def plot_cum_deaths_model(model_solution
         for k in range(len(grouped_by_parish)):
             model_deaths_month[i] += model_solution['D'][k][day]
                 
-        model_cum_deaths_month[i] = model_deaths_month[i]   
+        # model_cum_deaths_month[i] = model_deaths_month[i]   
 
-        if i > 0:
-            model_cum_deaths_month[i] += model_cum_deaths_month[i-1] 
+        # if i > 0:
+        #     model_cum_deaths_month[i] += model_cum_deaths_month[i-1] 
        
            
-    plt.plot(days, model_cum_deaths_month, color='blue') 
+    plt.plot(days, model_deaths_month, color='blue') 
     plt.plot(days, cum_deaths, label='Number of infected parishes', color='orange')
     plt.xlabel('Month')
     plt.xticks( rotation=45)
     plt.ylabel('Cumulative Deaths')
     plt.title('South Scania')
     plt.show()         
-    return (model_cum_deaths_month, days, cum_deaths) 
+    return (model_deaths_month) 
