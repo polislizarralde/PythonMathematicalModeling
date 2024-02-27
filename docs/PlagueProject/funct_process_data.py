@@ -348,11 +348,20 @@ def transmission_matrix_beta(gdf: gpd.GeoDataFrame, beta:np.array, column_name: 
 
 # Beta matrix considering repeated names
 def beta_matrix(gdf: gpd.GeoDataFrame, beta:np.array, column_name: str = 'ParishName'):
-    unique_names = gdf[column_name]
-    len_unique_names = len(unique_names)
-    beta_matrix = np.zeros((len_unique_names,len_unique_names), dtype=float)
+    names = gdf[column_name]
+    len_names = len(names)
+    beta_matrix = np.zeros((len_names,len_names), dtype=float)
     np.fill_diagonal(beta_matrix, beta) 
     return beta_matrix
+
+# Beta matrix considering repeated names
+def identity_matrix(gdf: gpd.GeoDataFrame
+                    , column_name: str = 'ParishName'):
+    names = gdf[column_name]
+    len_names = len(names)
+    matrix = np.zeros((len_names,len_names), dtype=float)
+    np.fill_diagonal(matrix, 1.0) 
+    return matrix
 
 # # Transmission matrix defined for SCENARIO 1. 
 # def trans_matrix1(gdf: gpd.GeoDataFrame, beta:float, p:float, column_name: str = 'ParishName', column_geometry: str = 'geometry'):
