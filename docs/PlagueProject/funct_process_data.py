@@ -220,7 +220,8 @@ def sort_by_date(gdf, column_date: str = 'new_format_BeginPlaguePeriod'):
                     ascending=True,  # Sort ascending or descending?
                     inplace=True     # Modify the DataFrame in place (do not create a new object)
                     )
-    gdf_copy.reset_index(drop=True, inplace=True)
+    gdf_copy.reset_index(drop=True, inplace=True
+                         )
     return gdf_copy
 
 def add_Begin_End_days(gdf, begin_column:str = 'new_format_BeginPlaguePeriod', end_column:str = 'new_format_EndPlaguePeriod'):
@@ -237,8 +238,10 @@ def add_Begin_End_days(gdf, begin_column:str = 'new_format_BeginPlaguePeriod', e
                                             , axis=1)
 
     # Replace NaN values with a value in some columns (e.g., 0)
-    gdf_copy['BeginDaysPlague'].fillna(0, inplace=True)
-    gdf_copy['EndDaysPlague'].fillna(0, inplace=True)
+    gdf_copy['BeginDaysPlague'].fillna(0, inplace=True
+                                       )
+    gdf_copy['EndDaysPlague'].fillna(0, inplace=True
+                                     )
     #gdf_copy[death_column].fillna(None, inplace=True)
     
     # Changing the type of some columns from float to integer for the optimization process
@@ -246,7 +249,8 @@ def add_Begin_End_days(gdf, begin_column:str = 'new_format_BeginPlaguePeriod', e
     gdf_copy['EndDaysPlague'] = gdf_copy['EndDaysPlague'].astype(int)
     #gdf_copy[death_column] = gdf_copy['VictimsNumber'].astype(int)
         
-    gdf_copy.reset_index(drop=True, inplace=True)
+    gdf_copy.reset_index(drop=True, inplace=True
+                         )
     return gdf_copy
 
 # Function to call the data from the excel files
@@ -502,7 +506,8 @@ def transmission_matrix_p(gdf: gpd.GeoDataFrame, p_coeff: float,
                            column_name: str = 'ParishName'):
     
     # Reset the index
-    gdf.reset_index(drop=True, inplace=True)
+    gdf.reset_index(drop=True#, inplace=True
+                    )
 
     # Get parish names including duplicates
     unique_names = gdf[column_name]
@@ -930,7 +935,7 @@ def objectiveFunction_2 (model_sol: dict
     matrix_death_parishes_month = np.zeros((len(grouped_by_parish), len(days)))
     matrix_infected_parishes_month = np.zeros((len(grouped_by_parish), len(days)))
 
-    for k in range(2):
+    for k in range(len(grouped_by_parish)):
         for i, day in enumerate(days):
             if day < len(model_sol['D'][k]):
                 if model_sol['D'][k][day] >= 1.0 :
@@ -958,7 +963,7 @@ def objectiveFunction_2 (model_sol: dict
     # Computing the error between the model's output and the data
     total_error = (np.sum(error))/(max_error * len(cum_infected_parishes_by_month))
           
-    return (total_error) 
+    return (total_error, np.sum(error)) 
 
 # Function to calculate the square error between the cumulative number of deaths per month and the cumulative number of deaths in the data
 def objectiveFunction_3 (model_dict, gdf: gpd.GeoDataFrame 
@@ -1001,7 +1006,7 @@ def objectiveFunction_3 (model_dict, gdf: gpd.GeoDataFrame
     # Computing the error between the model's output and the data
     total_error = (np.sum(error))/(len(error)* max_error)
           
-    return (total_error)
+    return (total_error, np.sum(error))
 
 # Function to calculate the error in the number of infected parishes per month between the model and the data
 def plot_infected_parishes (model_solution: dict
@@ -1053,7 +1058,7 @@ def plot_infected_parishes (model_solution: dict
     plt.ylabel('Number of infected parishes')
     plt.title('South Scania')
     plt.show()         
-    return (model_infected_parishes) 
+    return (model_infected_parishes, cum_infected_parishes_by_month['NumberInfectedParishes'].values) 
 
 # Function to calculate the error in the cumulative number of infected parishes per month between the model and the data
 
@@ -1099,4 +1104,5 @@ def plot_cum_deaths_model(model_solution
     plt.ylabel('Cumulative Deaths')
     plt.title('South Scania')
     plt.show()         
-    return (model_deaths_month) 
+    return ("model_cumdeaths:",model_deaths_month
+            , "data_cumdeaths",cum_deaths) 
